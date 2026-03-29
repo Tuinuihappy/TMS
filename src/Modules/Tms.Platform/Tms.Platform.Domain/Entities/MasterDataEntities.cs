@@ -83,6 +83,9 @@ public sealed class Province : BaseEntity
     public string? Region { get; private set; }
 
     private Province() { }
+
+    public static Province Create(int id, string nameTh, string? nameEn, string? region) =>
+        new() { Id = id, NameTH = nameTh, NameEN = nameEn, Region = region };
 }
 
 public sealed class Holiday : AggregateRoot

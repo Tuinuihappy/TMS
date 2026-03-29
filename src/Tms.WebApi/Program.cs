@@ -83,6 +83,16 @@ app.MapIamEndpoints();
 app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
     .WithTags("Health");
 
+// ──── Database Seeder (Run on Startup) ──────────────────────
+try
+{
+    await Tms.WebApi.Infrastructure.Seeders.DatabaseSeeder.SeedAsync(app);
+}
+catch (Exception ex)
+{
+    Log.Error(ex, "Failed to seed database.");
+}
+
 app.Run();
 
 public partial class Program { }  // for integration tests
