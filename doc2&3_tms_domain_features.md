@@ -1,25 +1,8 @@
-# TMS Architecture: Domain Features & Capabilities (v3 — Final)
+# TMS Architecture: Domain Features & Capabilities
 
 **Document Version:** 3.0
 **Architecture:** DDD + Clean Architecture + Modular Monolith
 **สถานะ:** ✅ Reviewed & Improved
-
----
-
-## สรุปการปรับปรุงจาก v2
-
-| # | การเปลี่ยนแปลง | เหตุผล |
-|---|---|---|
-| 1 | ลบ **Order Splitting/Merging** ออกจาก Order → ย้าย Split ไป Execution, Merge ไป Planning | Splitting เกิดตอน Execution (บางส่วนส่งไม่ได้), Merging = Load Consolidation ที่ Planning ทำอยู่แล้ว |
-| 2 | เพิ่ม **Order Amendment** ใน Order | ต้องรองรับการแก้ไขออเดอร์หลัง Confirm (เปลี่ยนจำนวน, เปลี่ยนที่อยู่) |
-| 3 | ย้าย **Customer Tracking Link** จาก Tracking → Execution | เป็น Presentation ของ Shipment Status ไม่ใช่ GPS data |
-| 4 | แยก Billing & Cost เป็น **Tariff Management** + **Invoice & Settlement** | Lifecycle ต่างกัน — Tariff เป็น Config เปลี่ยนบ่อย, Invoice เป็น Transaction |
-| 5 | เพิ่ม **ERP Integration** ใน Integration Context | TMS ต้องส่งข้อมูลค่าใช้จ่ายไป ERP |
-| 6 | เพิ่ม **Document Storage** ใน Platform | POD/ใบอนุญาต/สัญญา ต้องมีที่เก็บกลาง |
-| 7 | ลบ **Vehicle Type Catalog** ออกจาก Master Data → ย้ายไป Fleet | เป็นข้อมูลที่ Fleet เป็นเจ้าของ |
-| 8 | แก้ **Address** overlap → Order ใช้ Address ตาม Order, Master Data เก็บ Address Book กลาง | แยก Concern ข้อมูลเฉพาะ Order vs ข้อมูลอ้างอิงกลาง |
-
----
 
 ## 📦 1. Order Context
 
