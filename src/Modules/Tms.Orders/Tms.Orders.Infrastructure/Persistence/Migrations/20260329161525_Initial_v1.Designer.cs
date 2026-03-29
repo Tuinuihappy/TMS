@@ -12,7 +12,7 @@ using Tms.Orders.Infrastructure.Persistence;
 namespace Tms.Orders.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OrdersDbContext))]
-    [Migration("20260329155758_Initial_v1")]
+    [Migration("20260329161525_Initial_v1")]
     partial class Initial_v1
     {
         /// <inheritdoc />

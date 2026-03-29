@@ -6,7 +6,7 @@ namespace Tms.Execution.Infrastructure.Persistence;
 public sealed class ExecutionDbContextFactory : IDesignTimeDbContextFactory<ExecutionDbContext>
 {
     private const string DefaultConn =
-        "Host=localhost;Port=5433;Database=tms_db;Username=tms_user;Password=tms_pass;";
+        "Host=localhost;Port=5434;Database=tms_dev;Username=tms_admin;Password=tms_dev_password;";
 
     public ExecutionDbContext CreateDbContext(string[] args)
     {
