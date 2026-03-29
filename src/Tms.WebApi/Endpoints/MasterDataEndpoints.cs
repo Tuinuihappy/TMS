@@ -1,6 +1,31 @@
 using MediatR;
+using Tms.Platform.Application.Features.MasterData;
 
 namespace Tms.WebApi.Endpoints;
+
+// ── Request DTOs ─────────────────────────────────────────────────────────
+public record CreateCustomerRequest(
+    string CustomerCode, string CompanyName, Guid TenantId,
+    string? ContactPerson = null, string? Phone = null,
+    string? Email = null, string? TaxId = null, string? PaymentTerms = null);
+
+public record UpdateCustomerRequest(
+    string CompanyName, string? ContactPerson, string? Phone,
+    string? Email, string? TaxId, string? PaymentTerms);
+
+public record CreateLocationRequest(
+    string LocationCode, string Name, double Latitude, double Longitude,
+    string Type, Guid TenantId,
+    string? AddressLine = null, string? District = null,
+    string? Province = null, string? PostalCode = null,
+    string? Zone = null, Guid? CustomerId = null);
+
+public record UpdateLocationRequest(
+    string Name, string? AddressLine, string? Province,
+    string? Zone, double Latitude, double Longitude);
+
+public record CreateReasonCodeRequest(
+    string Code, string Description, string Category, Guid TenantId);
 
 public static class MasterDataEndpoints
 {
@@ -8,56 +33,131 @@ public static class MasterDataEndpoints
     {
         var group = app.MapGroup("/api/master").WithTags("Master Data");
 
-        // ── Customer ─────────────────────────────────────────────────────
-        group.MapPost("/customers", () =>
-            Results.Created("/api/master/customers/new", new { Message = "Customer created" }))
-            .WithName("CreateCustomer").WithSummary("สร้างลูกค้าใหม่");
+        // ── Customers ───────────────────────────────────────────────────────
 
-        group.MapGet("/customers", (int page = 1, int pageSize = 20) =>
-            Results.Ok(new { Items = Array.Empty<object>(), Page = page, TotalCount = 0 }))
-            .WithName("GetCustomers").WithSummary("รายการลูกค้า");
+        group.MapPost("/customers", async (
+            CreateCustomerRequest req, ISender sender, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new CreateCustomerCommand(
+                req.CustomerCode, req.CompanyName, req.TenantId,
+                req.ContactPerson, req.Phone, req.Email, req.TaxId, req.PaymentTerms), ct);
+            return Results.Created($"/api/master/customers/{id}", new { Id = id });
+        })
+        .WithName("CreateCustomer").WithSummary("สร้างลูกค้าใหม่");
 
-        group.MapGet("/customers/{id:guid}", (Guid id) =>
-            Results.Ok(new { Id = id }))
-            .WithName("GetCustomerById").WithSummary("ข้อมูลลูกค้า");
+        group.MapGet("/customers", async (
+            ISender sender,
+            int page = 1, int pageSize = 20, bool? isActive = null,
+            Guid? tenantId = null, CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(new GetCustomersQuery(page, pageSize, isActive, tenantId), ct);
+            return Results.Ok(result);
+        })
+        .WithName("GetCustomers").WithSummary("รายการลูกค้า (Paged)");
 
-        group.MapPut("/customers/{id:guid}", (Guid id) =>
-            Results.NoContent())
-            .WithName("UpdateCustomer").WithSummary("แก้ไขข้อมูลลูกค้า");
+        group.MapGet("/customers/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetCustomerByIdQuery(id), ct);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("GetCustomerById").WithSummary("ข้อมูลลูกค้า");
 
-        // ── Location ─────────────────────────────────────────────────────
-        group.MapPost("/locations", () =>
-            Results.Created("/api/master/locations/new", new { Message = "Location created" }))
-            .WithName("CreateLocation").WithSummary("สร้าง Location");
+        group.MapPut("/customers/{id:guid}", async (
+            Guid id, UpdateCustomerRequest req, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateCustomerCommand(
+                id, req.CompanyName, req.ContactPerson, req.Phone,
+                req.Email, req.TaxId, req.PaymentTerms), ct);
+            return Results.NoContent();
+        })
+        .WithName("UpdateCustomer").WithSummary("แก้ไขข้อมูลลูกค้า");
 
-        group.MapGet("/locations", (string? type, string? zone, int page = 1) =>
-            Results.Ok(new { Items = Array.Empty<object>(), Page = page }))
-            .WithName("GetLocations").WithSummary("รายการ Locations");
+        group.MapDelete("/customers/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new DeactivateCustomerCommand(id), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeactivateCustomer").WithSummary("ปิดใช้งานลูกค้า (Soft Delete)");
 
-        group.MapGet("/locations/search", (string? q, string? type) =>
-            Results.Ok(new { Items = Array.Empty<object>(), Query = q }))
-            .WithName("SearchLocations").WithSummary("ค้นหา Location (Autocomplete)");
+        // ── Locations ───────────────────────────────────────────────────────
 
-        group.MapPut("/locations/{id:guid}", (Guid id) =>
-            Results.NoContent())
-            .WithName("UpdateLocation").WithSummary("แก้ไข Location");
+        group.MapPost("/locations", async (
+            CreateLocationRequest req, ISender sender, CancellationToken ct) =>
+        {
+            var id = await sender.Send(new CreateLocationCommand(
+                req.LocationCode, req.Name, req.Latitude, req.Longitude,
+                req.Type, req.TenantId, req.AddressLine, req.District,
+                req.Province, req.PostalCode, req.Zone, req.CustomerId), ct);
+            return Results.Created($"/api/master/locations/{id}", new { Id = id });
+        })
+        .WithName("CreateLocation").WithSummary("สร้าง Location");
 
-        // ── Reference Data ────────────────────────────────────────────────
-        group.MapGet("/reason-codes", (string? category) =>
-            Results.Ok(new { Items = Array.Empty<object>(), Category = category }))
-            .WithName("GetReasonCodes").WithSummary("Reason Codes");
+        group.MapGet("/locations", async (
+            ISender sender,
+            string? type = null, string? zone = null, Guid? customerId = null,
+            Guid? tenantId = null, int page = 1, int pageSize = 20,
+            CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(
+                new GetLocationsQuery(page, pageSize, type, zone, customerId, tenantId), ct);
+            return Results.Ok(result);
+        })
+        .WithName("GetLocations").WithSummary("รายการ Locations (Paged, Filter)");
 
-        group.MapPost("/reason-codes", () =>
-            Results.Created("/api/master/reason-codes/new", new { Message = "Reason code created" }))
-            .WithName("CreateReasonCode").WithSummary("สร้าง Reason Code");
+        group.MapGet("/locations/search", async (
+            ISender sender, string q = "", string? type = null,
+            Guid? tenantId = null, CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(new SearchLocationsQuery(q, type, tenantId), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("SearchLocations").WithSummary("ค้นหา Location (Autocomplete)");
 
-        group.MapGet("/provinces", () =>
-            Results.Ok(new { Items = Array.Empty<object>() }))
-            .WithName("GetProvinces").WithSummary("รายการจังหวัด");
+        group.MapPut("/locations/{id:guid}", async (
+            Guid id, UpdateLocationRequest req, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateLocationCommand(
+                id, req.Name, req.AddressLine, req.Province,
+                req.Zone, req.Latitude, req.Longitude), ct);
+            return Results.NoContent();
+        })
+        .WithName("UpdateLocation").WithSummary("แก้ไข Location");
 
-        group.MapGet("/holidays", (int year = 2026) =>
-            Results.Ok(new { Year = year, Items = Array.Empty<object>() }))
-            .WithName("GetHolidays").WithSummary("วันหยุด");
+        // ── Reference Data ──────────────────────────────────────────────────
+
+        group.MapGet("/reason-codes", async (
+            ISender sender, string? category = null,
+            Guid? tenantId = null, CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(new GetReasonCodesQuery(category, tenantId), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetReasonCodes").WithSummary("Reason Codes (Filter by Category)");
+
+        group.MapPost("/reason-codes", async (
+            CreateReasonCodeRequest req, ISender sender, CancellationToken ct) =>
+        {
+            var id = await sender.Send(
+                new CreateReasonCodeCommand(req.Code, req.Description, req.Category, req.TenantId), ct);
+            return Results.Created($"/api/master/reason-codes/{id}", new { Id = id });
+        })
+        .WithName("CreateReasonCode").WithSummary("สร้าง Reason Code");
+
+        group.MapGet("/provinces", async (ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetProvincesQuery(), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetProvinces").WithSummary("รายการจังหวัดทั้งหมด");
+
+        group.MapGet("/holidays", async (
+            ISender sender, int year = 2026,
+            Guid? tenantId = null, CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(new GetHolidaysQuery(year, tenantId), ct);
+            return Results.Ok(new { Year = year, Items = result });
+        })
+        .WithName("GetHolidays").WithSummary("รายการวันหยุด");
 
         return app;
     }
