@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tms.Planning.Domain/Tms.Planning.Domain.csproj" />
+    <ProjectReference Include="../Tms.Planning.Application/Tms.Planning.Application.csproj" />
+    <ProjectReference Include="../../../Tms.SharedKernel/Tms.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

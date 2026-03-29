@@ -1,0 +1,35 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Tms.SharedKernel/Tms.SharedKernel.csproj" />
+    <Project Path="src/Tms.WebApi/Tms.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Orders/">
+    <Project Path="src/Modules/Tms.Orders/Tms.Orders.Domain/Tms.Orders.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Orders/Tms.Orders.Application/Tms.Orders.Application.csproj" />
+    <Project Path="src/Modules/Tms.Orders/Tms.Orders.Infrastructure/Tms.Orders.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Planning/">
+    <Project Path="src/Modules/Tms.Planning/Tms.Planning.Domain/Tms.Planning.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Planning/Tms.Planning.Application/Tms.Planning.Application.csproj" />
+    <Project Path="src/Modules/Tms.Planning/Tms.Planning.Infrastructure/Tms.Planning.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Execution/">
+    <Project Path="src/Modules/Tms.Execution/Tms.Execution.Domain/Tms.Execution.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Execution/Tms.Execution.Application/Tms.Execution.Application.csproj" />
+    <Project Path="src/Modules/Tms.Execution/Tms.Execution.Infrastructure/Tms.Execution.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Resources/">
+    <Project Path="src/Modules/Tms.Resources/Tms.Resources.Domain/Tms.Resources.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Resources/Tms.Resources.Application/Tms.Resources.Application.csproj" />
+    <Project Path="src/Modules/Tms.Resources/Tms.Resources.Infrastructure/Tms.Resources.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Platform/">
+    <Project Path="src/Modules/Tms.Platform/Tms.Platform.Domain/Tms.Platform.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Platform/Tms.Platform.Application/Tms.Platform.Application.csproj" />
+    <Project Path="src/Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tms.Orders.UnitTests/Tms.Orders.UnitTests.csproj" />
+    <Project Path="tests/Tms.WebApi.IntegrationTests/Tms.WebApi.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

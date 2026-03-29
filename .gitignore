@@ -1,0 +1,41 @@
+# .gitignore สำหรับ .NET project
+
+## Build output
+bin/
+obj/
+out/
+
+## Visual Studio / Rider
+.vs/
+*.user
+*.suo
+.idea/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+.nuget/
+packages/
+
+## Logs
+logs/
+*.log
+
+## Secrets (ห้าม commit)
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
+
+## Docker volumes
+postgres_data/
+redis_data/
