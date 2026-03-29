@@ -1,7 +1,11 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Execution.Application.Features.UpdateShipmentStatus;
+using Tms.Execution.Domain.Interfaces;
 using Tms.Execution.Infrastructure.Persistence;
+using Tms.Execution.Infrastructure.Persistence.Repositories;
 
 namespace Tms.Execution.Infrastructure;
 
@@ -16,8 +20,15 @@ public static class ExecutionModule
                 configuration.GetConnectionString("TmsDb"),
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "exe")));
 
+        // Repositories
+        services.AddScoped<IShipmentRepository, ShipmentRepository>();
+
+        // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>
-            cfg.RegisterServicesFromAssembly(typeof(ExecutionModule).Assembly));
+        {
+            cfg.RegisterServicesFromAssembly(typeof(PickUpShipmentHandler).Assembly);
+            cfg.RegisterServicesFromAssembly(typeof(ExecutionModule).Assembly);
+        });
 
         return services;
     }

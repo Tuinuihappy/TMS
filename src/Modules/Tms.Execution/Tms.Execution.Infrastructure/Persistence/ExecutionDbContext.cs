@@ -6,16 +6,14 @@ namespace Tms.Execution.Infrastructure.Persistence;
 public sealed class ExecutionDbContext(DbContextOptions<ExecutionDbContext> options) : DbContext(options)
 {
     public DbSet<Shipment> Shipments => Set<Shipment>();
+    public DbSet<ShipmentItem> ShipmentItems => Set<ShipmentItem>();
+    public DbSet<PODRecord> PODRecords => Set<PODRecord>();
+    public DbSet<PODPhoto> PODPhotos => Set<PODPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("exe");
-        modelBuilder.Entity<Shipment>(b =>
-        {
-            b.ToTable("Shipments");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
-        });
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ExecutionDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
 }
