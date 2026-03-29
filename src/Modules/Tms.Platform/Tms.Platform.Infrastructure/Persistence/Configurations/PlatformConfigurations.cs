@@ -92,11 +92,14 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.FullName).IsRequired().HasMaxLength(200);
         builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
 
-        builder.HasMany<UserRole>("_userRoles")
+        builder.HasMany<UserRole>(u => u.UserRoles)
             .WithOne()
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_userRoles").HasField("_userRoles").AutoInclude();
+        builder.Navigation(u => u.UserRoles)
+            .HasField("_userRoles")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude();
     }
 }
 
@@ -119,11 +122,14 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(x => x.Name).IsRequired().HasMaxLength(100);
         builder.HasIndex(x => new { x.Name, x.TenantId }).IsUnique();
 
-        builder.HasMany<RolePermission>("_permissions")
+        builder.HasMany<RolePermission>(r => r.Permissions)
             .WithOne()
             .HasForeignKey(x => x.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_permissions").HasField("_permissions").AutoInclude();
+        builder.Navigation(r => r.Permissions)
+            .HasField("_permissions")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude();
     }
 }
 

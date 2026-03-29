@@ -34,15 +34,21 @@ public sealed class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Property(x => x.SubcontractorName).HasMaxLength(200);
         builder.Property(x => x.CurrentOdometerKm).HasPrecision(12, 2);
 
-        builder.HasMany<MaintenanceRecord>("_maintenanceRecords")
+        builder.HasMany<MaintenanceRecord>(v => v.MaintenanceRecords)
             .WithOne().HasForeignKey(x => x.VehicleId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_maintenanceRecords").HasField("_maintenanceRecords").AutoInclude(false);
+        builder.Navigation(v => v.MaintenanceRecords)
+            .HasField("_maintenanceRecords")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude(false);
 
-        builder.HasMany<InsuranceRecord>("_insuranceRecords")
+        builder.HasMany<InsuranceRecord>(v => v.InsuranceRecords)
             .WithOne().HasForeignKey(x => x.VehicleId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_insuranceRecords").HasField("_insuranceRecords").AutoInclude(false);
+        builder.Navigation(v => v.InsuranceRecords)
+            .HasField("_insuranceRecords")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude(false);
     }
 }
 
@@ -99,10 +105,13 @@ public sealed class DriverConfiguration : IEntityTypeConfiguration<Driver>
             l.Property(p => p.ExpiryDate).HasColumnName("License_ExpiryDate");
         });
 
-        builder.HasMany<HOSRecord>("_hosHistory")
+        builder.HasMany<HOSRecord>(d => d.HOSHistory)
             .WithOne().HasForeignKey(x => x.DriverId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_hosHistory").HasField("_hosHistory").AutoInclude(false);
+        builder.Navigation(d => d.HOSHistory)
+            .HasField("_hosHistory")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude(false);
     }
 }
 

@@ -58,12 +58,15 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
             w.Property(p => p.To).HasColumnName("DropoffTo");
         });
 
-        builder.HasMany<OrderItem>("_items")
+        builder.HasMany<OrderItem>(o => o.Items)
             .WithOne()
             .HasForeignKey(x => x.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Navigation("_items").HasField("_items").AutoInclude();
+        builder.Navigation(o => o.Items)
+            .HasField("_items")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude();
     }
 }
 

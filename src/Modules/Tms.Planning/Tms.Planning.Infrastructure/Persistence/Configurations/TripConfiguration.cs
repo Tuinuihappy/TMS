@@ -23,11 +23,15 @@ public sealed class TripConfiguration : IEntityTypeConfiguration<Trip>
         builder.Property(x => x.TotalDistanceKm).HasPrecision(10, 2);
         builder.Property(x => x.CancelReason).HasMaxLength(500);
 
-        builder.HasMany<Stop>("_stops")
+        // EF convention finds private field _stops automatically via property name Stops
+        builder.HasMany<Stop>(t => t.Stops)
             .WithOne()
             .HasForeignKey(x => x.TripId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation("_stops").HasField("_stops").AutoInclude();
+        builder.Navigation(t => t.Stops)
+            .HasField("_stops")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude();
     }
 }
 
