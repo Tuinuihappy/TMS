@@ -76,6 +76,9 @@ if (!string.IsNullOrWhiteSpace(jwtAuthority))
 app.MapOrderEndpoints();
 app.MapShipmentEndpoints();
 app.MapResourceEndpoints();
+app.MapTripEndpoints();
+app.MapMasterDataEndpoints();
+app.MapIamEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
     .WithTags("Health");
