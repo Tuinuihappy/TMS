@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -18,5 +18,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Tms.WebApi/Tms.WebApi.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Resources/Tms.Resources.Infrastructure/Tms.Resources.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Orders/Tms.Orders.Infrastructure/Tms.Orders.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Execution/Tms.Execution.Infrastructure/Tms.Execution.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
