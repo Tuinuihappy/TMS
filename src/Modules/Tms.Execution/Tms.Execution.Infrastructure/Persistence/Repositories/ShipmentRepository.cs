@@ -58,7 +58,6 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
 
     public async Task UpdateAsync(Shipment entity, CancellationToken ct = default)
     {
-        context.Shipments.Update(entity);
         await context.SaveChangesAsync(ct);
     }
 
@@ -75,5 +74,11 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
         var count = await context.Shipments
             .CountAsync(s => s.ShipmentNumber.StartsWith(prefix), ct);
         return $"{prefix}-{(count + 1):D4}";
+    }
+
+    public async Task AddPodRecordAsync(PODRecord pod, CancellationToken ct = default)
+    {
+        await context.PODRecords.AddAsync(pod, ct);
+        await context.SaveChangesAsync(ct);
     }
 }

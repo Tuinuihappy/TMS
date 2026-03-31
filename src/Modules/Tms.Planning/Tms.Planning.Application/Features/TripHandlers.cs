@@ -2,6 +2,7 @@ using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.Application;
 using Tms.SharedKernel.Exceptions;
+using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Planning.Application.Features;
 
@@ -78,28 +79,42 @@ public sealed class AddStopHandler(ITripRepository repo)
         var trip = await repo.GetByIdAsync(request.TripId, ct)
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
+        // Validate trip state
+        if (trip.Status is not (TripStatus.Created or TripStatus.Assigned))
+            throw new DomainException("Cannot add stops to trip in current status.", "INVALID_TRIP_STATE");
+
         var stopType = Enum.Parse<StopType>(request.Stop.Type, ignoreCase: true);
-        var stop = trip.AddStop(
-            request.Stop.Sequence, request.Stop.OrderId, stopType,
+        var stop = Stop.Create(
+            request.TripId, request.Stop.Sequence, request.Stop.OrderId, stopType,
             request.Stop.AddressName, request.Stop.AddressStreet, request.Stop.AddressProvince,
             request.Stop.Lat, request.Stop.Lng, request.Stop.WindowFrom, request.Stop.WindowTo);
 
-        await repo.UpdateAsync(trip, ct);
+        await repo.AddStopAsync(stop, ct);
         return stop.Id;
     }
 }
 
-// ── Assign Resources ──────────────────────────────────────────────────────
 public sealed record AssignResourcesCommand(
     Guid TripId, Guid VehicleId, Guid DriverId) : ICommand;
 
-public sealed class AssignResourcesHandler(ITripRepository repo)
+public sealed class AssignResourcesHandler(
+    ITripRepository repo,
+    IResourceAvailabilityChecker? resourceChecker = null)
     : ICommandHandler<AssignResourcesCommand>
 {
     public async Task Handle(AssignResourcesCommand request, CancellationToken ct)
     {
         var trip = await repo.GetByIdAsync(request.TripId, ct)
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
+
+        // Cross-module validation (if checker is registered)
+        if (resourceChecker is not null)
+        {
+            if (!await resourceChecker.IsVehicleAvailableAsync(request.VehicleId, ct))
+                throw new DomainException("Vehicle is not available for assignment.", "VEHICLE_NOT_AVAILABLE");
+            if (!await resourceChecker.IsDriverAvailableAsync(request.DriverId, ct))
+                throw new DomainException("Driver is not available for assignment.", "DRIVER_NOT_AVAILABLE");
+        }
 
         trip.AssignResources(request.VehicleId, request.DriverId);
         await repo.UpdateAsync(trip, ct);
@@ -109,7 +124,9 @@ public sealed class AssignResourcesHandler(ITripRepository repo)
 // ── Dispatch Trip ─────────────────────────────────────────────────────────
 public sealed record DispatchTripCommand(Guid TripId) : ICommand;
 
-public sealed class DispatchTripHandler(ITripRepository repo)
+public sealed class DispatchTripHandler(
+    ITripRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<DispatchTripCommand>
 {
     public async Task Handle(DispatchTripCommand request, CancellationToken ct)
@@ -119,13 +136,49 @@ public sealed class DispatchTripHandler(ITripRepository repo)
 
         trip.Dispatch();
         await repo.UpdateAsync(trip, ct);
+
+        // Publish integration event so Execution module can auto-create Shipments
+        var stops = trip.Stops.Select(s => new TripStopSnapshot(
+            s.Id, s.Sequence, s.OrderId, s.Type.ToString(),
+            s.AddressName, s.AddressStreet, s.AddressProvince,
+            s.AddressLatitude, s.AddressLongitude)).ToList();
+
+        await eventPublisher.PublishAsync(
+            new TripDispatchedIntegrationEvent(
+                trip.Id, trip.TripNumber,
+                trip.VehicleId!.Value, trip.DriverId!.Value,
+                trip.TenantId, stops), ct);
+    }
+}
+
+// ── Complete Trip ─────────────────────────────────────────────────────────
+public sealed record CompleteTripCommand(Guid TripId) : ICommand;
+
+public sealed class CompleteTripHandler(
+    ITripRepository repo,
+    IIntegrationEventPublisher eventPublisher)
+    : ICommandHandler<CompleteTripCommand>
+{
+    public async Task Handle(CompleteTripCommand request, CancellationToken ct)
+    {
+        var trip = await repo.GetByIdAsync(request.TripId, ct)
+            ?? throw new NotFoundException(nameof(Trip), request.TripId);
+
+        trip.Complete();
+        await repo.UpdateAsync(trip, ct);
+
+        await eventPublisher.PublishAsync(
+            new TripCompletedIntegrationEvent(
+                trip.Id, trip.TripNumber, trip.VehicleId, trip.DriverId), ct);
     }
 }
 
 // ── Cancel Trip ───────────────────────────────────────────────────────────
 public sealed record CancelTripCommand(Guid TripId, string Reason) : ICommand;
 
-public sealed class CancelTripHandler(ITripRepository repo)
+public sealed class CancelTripHandler(
+    ITripRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<CancelTripCommand>
 {
     public async Task Handle(CancelTripCommand request, CancellationToken ct)
@@ -135,6 +188,11 @@ public sealed class CancelTripHandler(ITripRepository repo)
 
         trip.Cancel(request.Reason);
         await repo.UpdateAsync(trip, ct);
+
+        await eventPublisher.PublishAsync(
+            new TripCancelledIntegrationEvent(
+                trip.Id, trip.TripNumber, request.Reason,
+                trip.VehicleId, trip.DriverId), ct);
     }
 }
 

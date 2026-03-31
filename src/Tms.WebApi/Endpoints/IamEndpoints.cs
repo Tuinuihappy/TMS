@@ -136,13 +136,14 @@ public static class IamEndpoints
             ISender sender,
             int page = 1, int pageSize = 50,
             Guid? tenantId = null, string? resource = null,
+            Guid? userId = null, DateTime? from = null, DateTime? to = null,
             CancellationToken ct = default) =>
         {
             var result = await sender.Send(
-                new GetAuditLogsQuery(page, pageSize, tenantId, resource), ct);
+                new GetAuditLogsQuery(page, pageSize, tenantId, resource, userId, from, to), ct);
             return Results.Ok(result);
         })
-        .WithName("GetAuditLogs").WithSummary("Audit Logs (Paged, Filter by Resource)");
+        .WithName("GetAuditLogs").WithSummary("Audit Logs (Paged, Filter by Resource/User/Date)");
 
         return app;
     }

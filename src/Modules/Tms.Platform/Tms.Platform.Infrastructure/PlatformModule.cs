@@ -17,9 +17,11 @@ public static class PlatformModule
         IConfiguration configuration)
     {
         services.AddDbContext<PlatformDbContext>(options =>
-            options.UseNpgsql(
-                configuration.GetConnectionString("TmsDb"),
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "plf")));
+            options
+                .UseNpgsql(
+                    configuration.GetConnectionString("TmsDb"),
+                    npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "plf"))
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         // Master Data Repositories
         services.AddScoped<ICustomerRepository, CustomerRepository>();

@@ -13,6 +13,6 @@ public sealed class ExecutionDbContextFactory : IDesignTimeDbContextFactory<Exec
         var conn = Environment.GetEnvironmentVariable("ConnectionStrings__TmsDb") ?? DefaultConn;
         var optionsBuilder = new DbContextOptionsBuilder<ExecutionDbContext>();
         optionsBuilder.UseNpgsql(conn, x => x.MigrationsHistoryTable("__EFMigrationsHistory", "exe"));
-        return new ExecutionDbContext(optionsBuilder.Options);
+        return new ExecutionDbContext(optionsBuilder.Options, Tms.SharedKernel.Application.NullPublisher.Instance);
     }
 }

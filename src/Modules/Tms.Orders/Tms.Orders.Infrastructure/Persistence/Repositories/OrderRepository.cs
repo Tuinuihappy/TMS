@@ -10,13 +10,11 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
 {
     public async Task<TransportOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.TransportOrders
-            .Include("_items")
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
     public async Task<TransportOrder?> GetByOrderNumberAsync(
         string orderNumber, CancellationToken cancellationToken = default) =>
         await context.TransportOrders
-            .Include("_items")
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
 
     public async Task<(IReadOnlyList<TransportOrder> Items, int TotalCount)> GetPagedAsync(
@@ -51,7 +49,6 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
 
     public async Task UpdateAsync(TransportOrder entity, CancellationToken cancellationToken = default)
     {
-        context.TransportOrders.Update(entity);
         await context.SaveChangesAsync(cancellationToken);
     }
 

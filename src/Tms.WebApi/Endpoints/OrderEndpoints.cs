@@ -1,4 +1,5 @@
 using MediatR;
+using Tms.Orders.Application.Features.AmendOrder;
 using Tms.Orders.Application.Features.CancelOrder;
 using Tms.Orders.Application.Features.ConfirmOrder;
 using Tms.Orders.Application.Features.CreateOrder;
@@ -54,6 +55,16 @@ public static class OrderEndpoints
         })
         .WithName("ConfirmOrder")
         .WithSummary("ยืนยัน Order");
+
+        // PUT /api/orders/{id}/amend
+        group.MapPut("/{id:guid}/amend", async (
+            Guid id, AmendOrderRequest request, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new AmendOrderCommand(id, request), ct);
+            return Results.NoContent();
+        })
+        .WithName("AmendOrder")
+        .WithSummary("แก้ไข Order (Draft/Confirmed)");
 
         // PUT /api/orders/{id}/cancel
         group.MapPut("/{id:guid}/cancel", async (

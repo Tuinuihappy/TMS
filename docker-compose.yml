@@ -1,0 +1,73 @@
+# docker-compose.yml — TMS Full-Stack (API + Infrastructure)
+# Usage: docker compose up --build -d
+
+services:
+  # ── TMS WebAPI ─────────────────────────────────────────────
+  tms_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tms_api
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__TmsDb: "Host=postgres;Port=5432;Database=tms_dev;Username=tms_admin;Password=tms_dev_password"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tms_postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: tms_dev
+      POSTGRES_USER: tms_admin
+      POSTGRES_PASSWORD: tms_dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tms_admin -d tms_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: tms_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── RabbitMQ ───────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: tms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: tms
+      RABBITMQ_DEFAULT_PASS: tms_dev
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

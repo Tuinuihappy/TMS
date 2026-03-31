@@ -253,6 +253,13 @@ public sealed class Driver : AggregateRoot
     }
 
     public void ChangeStatus(DriverStatus newStatus) => Status = newStatus;
+
+    public void UpdateInfo(string? fullName = null, string? phoneNumber = null, LicenseInfo? newLicense = null)
+    {
+        if (!string.IsNullOrWhiteSpace(fullName)) FullName = fullName;
+        if (phoneNumber is not null) PhoneNumber = phoneNumber;
+        if (newLicense is not null) License = newLicense;
+    }
 }
 
 public sealed class HOSRecord : BaseEntity

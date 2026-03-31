@@ -3,6 +3,7 @@ using Tms.Platform.Domain.Enums;
 using Tms.Platform.Domain.Interfaces;
 using Tms.SharedKernel.Application;
 using Tms.SharedKernel.Exceptions;
+using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Platform.Application.Features.MasterData;
 
@@ -73,7 +74,9 @@ public sealed class UpdateCustomerHandler(ICustomerRepository repo)
 }
 
 public sealed record DeactivateCustomerCommand(Guid CustomerId) : ICommand;
-public sealed class DeactivateCustomerHandler(ICustomerRepository repo)
+public sealed class DeactivateCustomerHandler(
+    ICustomerRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<DeactivateCustomerCommand>
 {
     public async Task Handle(DeactivateCustomerCommand req, CancellationToken ct)
@@ -82,6 +85,9 @@ public sealed class DeactivateCustomerHandler(ICustomerRepository repo)
             ?? throw new NotFoundException(nameof(Customer), req.CustomerId);
         customer.Deactivate();
         await repo.UpdateAsync(customer, ct);
+
+        await eventPublisher.PublishAsync(
+            new CustomerDeactivatedIntegrationEvent(customer.Id, customer.CustomerCode), ct);
     }
 }
 
@@ -251,5 +257,23 @@ public sealed class GetHolidaysHandler(IHolidayRepository repo)
     {
         var items = await repo.GetByYearAsync(req.Year, req.TenantId ?? Guid.Empty, ct);
         return items.Select(h => new HolidayDto(h.Id, h.Date, h.Description, h.Year)).ToList();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CREATE HOLIDAY
+// ════════════════════════════════════════════════════════════════════════════
+
+public sealed record CreateHolidayCommand(
+    DateTime Date, string Description, Guid TenantId) : ICommand<Guid>;
+
+public sealed class CreateHolidayHandler(IHolidayRepository repo)
+    : ICommandHandler<CreateHolidayCommand, Guid>
+{
+    public async Task<Guid> Handle(CreateHolidayCommand req, CancellationToken ct)
+    {
+        var holiday = Holiday.Create(req.Date, req.Description, req.TenantId);
+        await repo.AddAsync(holiday, ct);
+        return holiday.Id;
     }
 }

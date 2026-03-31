@@ -19,9 +19,11 @@ public static class OrdersModule
     {
         // DbContext
         services.AddDbContext<OrdersDbContext>(options =>
-            options.UseNpgsql(
-                configuration.GetConnectionString("TmsDb"),
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "ord")));
+            options
+                .UseNpgsql(
+                    configuration.GetConnectionString("TmsDb"),
+                    npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "ord"))
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         // Repositories
         services.AddScoped<IOrderRepository, OrderRepository>();

@@ -153,8 +153,8 @@ public sealed class Trip : AggregateRoot
 
     public void Complete()
     {
-        if (Status != TripStatus.InProgress)
-            throw new DomainException("Only InProgress trips can be completed.", "INVALID_TRIP_STATE");
+        if (Status is not (TripStatus.Dispatched or TripStatus.InProgress))
+            throw new DomainException("Only Dispatched or InProgress trips can be completed.", "INVALID_TRIP_STATE");
         Status = TripStatus.Completed;
         CompletedAt = DateTime.UtcNow;
     }

@@ -16,9 +16,11 @@ public static class PlanningModule
         IConfiguration configuration)
     {
         services.AddDbContext<PlanningDbContext>(options =>
-            options.UseNpgsql(
-                configuration.GetConnectionString("TmsDb"),
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "pln")));
+            options
+                .UseNpgsql(
+                    configuration.GetConnectionString("TmsDb"),
+                    npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "pln"))
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.AddScoped<ITripRepository, TripRepository>();
 

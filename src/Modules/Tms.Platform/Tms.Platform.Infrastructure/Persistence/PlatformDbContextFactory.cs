@@ -13,6 +13,6 @@ public sealed class PlatformDbContextFactory : IDesignTimeDbContextFactory<Platf
         var conn = Environment.GetEnvironmentVariable("ConnectionStrings__TmsDb") ?? DefaultConn;
         var optionsBuilder = new DbContextOptionsBuilder<PlatformDbContext>();
         optionsBuilder.UseNpgsql(conn, x => x.MigrationsHistoryTable("__EFMigrationsHistory", "plf"));
-        return new PlatformDbContext(optionsBuilder.Options);
+        return new PlatformDbContext(optionsBuilder.Options, Tms.SharedKernel.Application.NullPublisher.Instance);
     }
 }

@@ -27,6 +27,9 @@ public record UpdateLocationRequest(
 public record CreateReasonCodeRequest(
     string Code, string Description, string Category, Guid TenantId);
 
+public record CreateHolidayRequest(
+    DateTime Date, string Description, Guid TenantId);
+
 public static class MasterDataEndpoints
 {
     public static IEndpointRouteBuilder MapMasterDataEndpoints(this IEndpointRouteBuilder app)
@@ -158,6 +161,15 @@ public static class MasterDataEndpoints
             return Results.Ok(new { Year = year, Items = result });
         })
         .WithName("GetHolidays").WithSummary("รายการวันหยุด");
+
+        group.MapPost("/holidays", async (
+            CreateHolidayRequest req, ISender sender, CancellationToken ct) =>
+        {
+            var id = await sender.Send(
+                new CreateHolidayCommand(req.Date, req.Description, req.TenantId), ct);
+            return Results.Created($"/api/master/holidays/{id}", new { Id = id });
+        })
+        .WithName("CreateHoliday").WithSummary("สร้างวันหยุด");
 
         return app;
     }

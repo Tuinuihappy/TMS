@@ -10,6 +10,20 @@ public static class ShipmentEndpoints
     {
         var group = app.MapGroup("/api/shipments").WithTags("Shipments");
 
+        // GET /api/shipments/driver/today
+        group.MapGet("/driver/today", async (
+            ISender sender,
+            Guid? driverId = null,
+            Guid? tenantId = null,
+            CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(
+                new GetDriverTodayShipmentsQuery(driverId ?? Guid.Empty, tenantId), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetDriverTodayShipments")
+        .WithSummary("งานวันนี้ของ Driver");
+
         // GET /api/shipments
         group.MapGet("/", async (
             ISender sender,

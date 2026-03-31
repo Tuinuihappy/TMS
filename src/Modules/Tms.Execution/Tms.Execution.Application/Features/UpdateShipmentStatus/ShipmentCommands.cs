@@ -60,8 +60,16 @@ public sealed class DeliverShipmentHandler(IShipmentRepository repo)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
 
         var pod = CreatePod(shipment.Id, request.Pod);
+
+        // Add POD record directly (avoids EF treating new POD as modification)
+        await repo.AddPodRecordAsync(pod, ct);
+
+        // Re-load shipment so it picks up the POD
+        shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
+            ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
+
         var items = request.Items.Select(i => (i.ShipmentItemId, i.DeliveredQty));
-        shipment.Deliver(items, pod);
+        shipment.Deliver(items, shipment.POD!);
         await repo.UpdateAsync(shipment, ct);
     }
 
@@ -96,8 +104,13 @@ public sealed class PartialDeliverShipmentHandler(IShipmentRepository repo)
         foreach (var url in request.Pod.PhotoUrls ?? [])
             pod.AddPhoto(url);
 
+        await repo.AddPodRecordAsync(pod, ct);
+
+        shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
+            ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
+
         var items = request.Items.Select(i => (i.ShipmentItemId, i.DeliveredQty));
-        shipment.PartialDeliver(items, pod);
+        shipment.PartialDeliver(items, shipment.POD!);
         await repo.UpdateAsync(shipment, ct);
     }
 }

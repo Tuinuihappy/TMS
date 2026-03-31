@@ -18,6 +18,6 @@ public sealed class OrdersDbContextFactory : IDesignTimeDbContextFactory<OrdersD
         optionsBuilder.UseNpgsql(
             conn,
             x => x.MigrationsHistoryTable("__EFMigrationsHistory", "ord"));
-        return new OrdersDbContext(optionsBuilder.Options);
+        return new OrdersDbContext(optionsBuilder.Options, Tms.SharedKernel.Application.NullPublisher.Instance);
     }
 }

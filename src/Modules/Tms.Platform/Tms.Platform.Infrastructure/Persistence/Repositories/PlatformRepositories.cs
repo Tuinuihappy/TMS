@@ -33,7 +33,7 @@ public sealed class CustomerRepository(PlatformDbContext ctx) : ICustomerReposit
     { await ctx.Customers.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(Customer entity, CancellationToken ct = default)
-    { ctx.Customers.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(Customer entity, CancellationToken ct = default)
     { ctx.Customers.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -80,7 +80,7 @@ public sealed class LocationRepository(PlatformDbContext ctx) : ILocationReposit
     { await ctx.Locations.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(Location entity, CancellationToken ct = default)
-    { ctx.Locations.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(Location entity, CancellationToken ct = default)
     { ctx.Locations.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -105,7 +105,7 @@ public sealed class ReasonCodeRepository(PlatformDbContext ctx) : IReasonCodeRep
     { await ctx.ReasonCodes.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(ReasonCode entity, CancellationToken ct = default)
-    { ctx.ReasonCodes.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(ReasonCode entity, CancellationToken ct = default)
     { ctx.ReasonCodes.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -135,7 +135,7 @@ public sealed class HolidayRepository(PlatformDbContext ctx) : IHolidayRepositor
     { await ctx.Holidays.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(Holiday entity, CancellationToken ct = default)
-    { ctx.Holidays.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(Holiday entity, CancellationToken ct = default)
     { ctx.Holidays.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -169,7 +169,7 @@ public sealed class UserRepository(PlatformDbContext ctx) : IUserRepository
     { await ctx.Users.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(User entity, CancellationToken ct = default)
-    { ctx.Users.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(User entity, CancellationToken ct = default)
     { ctx.Users.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -190,10 +190,26 @@ public sealed class RoleRepository(PlatformDbContext ctx) : IRoleRepository
     { await ctx.Roles.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(Role entity, CancellationToken ct = default)
-    { ctx.Roles.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(Role entity, CancellationToken ct = default)
     { ctx.Roles.Remove(entity); await ctx.SaveChangesAsync(ct); }
+
+    public async Task SetPermissionsAsync(Guid roleId, IEnumerable<(string resource, string action)> perms, CancellationToken ct = default)
+    {
+        // Delete existing permissions directly
+        var existing = await ctx.Set<RolePermission>().Where(p => p.RoleId == roleId).ToListAsync(ct);
+        ctx.Set<RolePermission>().RemoveRange(existing);
+
+        // Add new permissions directly to DbContext
+        foreach (var (resource, action) in perms)
+        {
+            await ctx.Set<RolePermission>().AddAsync(
+                new RolePermission { RoleId = roleId, Resource = resource, Action = action }, ct);
+        }
+
+        await ctx.SaveChangesAsync(ct);
+    }
 }
 
 // ── ApiKey ────────────────────────────────────────────────────────────────
@@ -215,7 +231,7 @@ public sealed class ApiKeyRepository(PlatformDbContext ctx) : IApiKeyRepository
     { await ctx.ApiKeys.AddAsync(entity, ct); await ctx.SaveChangesAsync(ct); }
 
     public async Task UpdateAsync(ApiKey entity, CancellationToken ct = default)
-    { ctx.ApiKeys.Update(entity); await ctx.SaveChangesAsync(ct); }
+    { await ctx.SaveChangesAsync(ct); }
 
     public async Task DeleteAsync(ApiKey entity, CancellationToken ct = default)
     { ctx.ApiKeys.Remove(entity); await ctx.SaveChangesAsync(ct); }
@@ -229,11 +245,16 @@ public sealed class AuditLogRepository(PlatformDbContext ctx) : IAuditLogReposit
 
     public async Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize, Guid? tenantId = null,
-        string? resource = null, CancellationToken ct = default)
+        string? resource = null, Guid? userId = null,
+        DateTime? from = null, DateTime? to = null,
+        CancellationToken ct = default)
     {
         var query = ctx.AuditLogs.AsQueryable();
         if (tenantId.HasValue) query = query.Where(l => l.TenantId == tenantId.Value);
         if (!string.IsNullOrWhiteSpace(resource)) query = query.Where(l => l.Resource == resource);
+        if (userId.HasValue) query = query.Where(l => l.UserId == userId.Value);
+        if (from.HasValue) query = query.Where(l => l.Timestamp >= from.Value);
+        if (to.HasValue) query = query.Where(l => l.Timestamp <= to.Value);
 
         var total = await query.CountAsync(ct);
         var items = await query.OrderByDescending(l => l.Timestamp)

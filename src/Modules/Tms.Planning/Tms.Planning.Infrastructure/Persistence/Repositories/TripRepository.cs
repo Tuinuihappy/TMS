@@ -54,7 +54,6 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
 
     public async Task UpdateAsync(Trip entity, CancellationToken ct = default)
     {
-        context.Trips.Update(entity);
         await context.SaveChangesAsync(ct);
     }
 
@@ -71,5 +70,11 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
         var count = await context.Trips
             .CountAsync(t => t.TripNumber.StartsWith(prefix), ct);
         return $"{prefix}-{(count + 1):D3}";
+    }
+
+    public async Task AddStopAsync(Stop stop, CancellationToken ct = default)
+    {
+        await context.Stops.AddAsync(stop, ct);
+        await context.SaveChangesAsync(ct);
     }
 }

@@ -17,8 +17,11 @@ public sealed class TransportOrder : AggregateRoot
     public TimeWindow? PickupWindow { get; private set; }
     public TimeWindow? DropoffWindow { get; private set; }
     public string? Notes { get; private set; }
+    public string? CancelReason { get; private set; }
+    public Guid? CreatedBy { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
+    public DateTime? ConfirmedAt { get; private set; }
 
     private readonly List<OrderItem> _items = [];
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
@@ -58,6 +61,23 @@ public sealed class TransportOrder : AggregateRoot
         return order;
     }
 
+    public static TransportOrder CreateWithUser(
+        string orderNumber,
+        Guid customerId,
+        Address pickupAddress,
+        Address dropoffAddress,
+        Guid createdBy,
+        OrderPriority priority = OrderPriority.Normal,
+        TimeWindow? pickupWindow = null,
+        TimeWindow? dropoffWindow = null,
+        string? notes = null)
+    {
+        var order = Create(orderNumber, customerId, pickupAddress, dropoffAddress,
+            priority, pickupWindow, dropoffWindow, notes);
+        order.CreatedBy = createdBy;
+        return order;
+    }
+
     public void AddItem(OrderItem item)
     {
         if (Status != OrderStatus.Draft)
@@ -75,6 +95,7 @@ public sealed class TransportOrder : AggregateRoot
             throw new DomainException("Order must have at least one item.", "ORDER_NO_ITEMS");
 
         Status = OrderStatus.Confirmed;
+        ConfirmedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new OrderConfirmedEvent(Id, OrderNumber, CustomerId));
     }
@@ -85,6 +106,7 @@ public sealed class TransportOrder : AggregateRoot
             throw new DomainException($"Cannot cancel an order with status '{Status}'.", "ORDER_CANNOT_CANCEL");
 
         Status = OrderStatus.Cancelled;
+        CancelReason = reason;
         Notes = string.IsNullOrWhiteSpace(Notes) ? reason : $"{Notes} | Cancel reason: {reason}";
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new OrderCancelledEvent(Id, OrderNumber, reason));
@@ -115,5 +137,30 @@ public sealed class TransportOrder : AggregateRoot
 
         Status = OrderStatus.Completed;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Amend Draft or Confirmed order — update pickup/dropoff/notes</summary>
+    public void Amend(
+        Address? newPickup = null,
+        Address? newDropoff = null,
+        TimeWindow? newPickupWindow = null,
+        TimeWindow? newDropoffWindow = null,
+        string? newNotes = null,
+        OrderPriority? newPriority = null)
+    {
+        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+            throw new DomainException(
+                $"Cannot amend order with status '{Status}'. Only Draft or Confirmed orders can be amended.",
+                "ORDER_CANNOT_AMEND");
+
+        if (newPickup is not null) PickupAddress = newPickup;
+        if (newDropoff is not null) DropoffAddress = newDropoff;
+        if (newPickupWindow is not null) PickupWindow = newPickupWindow;
+        if (newDropoffWindow is not null) DropoffWindow = newDropoffWindow;
+        if (newNotes is not null) Notes = newNotes;
+        if (newPriority.HasValue) Priority = newPriority.Value;
+
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new OrderAmendedEvent(Id, OrderNumber));
     }
 }

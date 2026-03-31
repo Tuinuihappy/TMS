@@ -4,6 +4,7 @@ using Tms.Platform.Domain.Entities;
 using Tms.Platform.Domain.Interfaces;
 using Tms.SharedKernel.Application;
 using Tms.SharedKernel.Exceptions;
+using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Platform.Application.Features.Iam;
 
@@ -56,7 +57,10 @@ public sealed class SyncUserHandler(IUserRepository repo)
 public sealed record AssignUserRolesCommand(
     Guid UserId, List<Guid> RoleIds) : ICommand;
 
-public sealed class AssignUserRolesHandler(IUserRepository repo, IRoleRepository roleRepo)
+public sealed class AssignUserRolesHandler(
+    IUserRepository repo,
+    IRoleRepository roleRepo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<AssignUserRolesCommand>
 {
     public async Task Handle(AssignUserRolesCommand req, CancellationToken ct)
@@ -78,11 +82,16 @@ public sealed class AssignUserRolesHandler(IUserRepository repo, IRoleRepository
             user.AssignRole(roleId);
 
         await repo.UpdateAsync(user, ct);
+
+        await eventPublisher.PublishAsync(
+            new UserRolesChangedIntegrationEvent(user.Id, user.Username, req.RoleIds), ct);
     }
 }
 
 public sealed record DeactivateUserCommand(Guid UserId) : ICommand;
-public sealed class DeactivateUserHandler(IUserRepository repo)
+public sealed class DeactivateUserHandler(
+    IUserRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<DeactivateUserCommand>
 {
     public async Task Handle(DeactivateUserCommand req, CancellationToken ct)
@@ -91,6 +100,9 @@ public sealed class DeactivateUserHandler(IUserRepository repo)
             ?? throw new NotFoundException(nameof(User), req.UserId);
         user.Deactivate();
         await repo.UpdateAsync(user, ct);
+
+        await eventPublisher.PublishAsync(
+            new UserDeactivatedIntegrationEvent(user.Id, user.Username), ct);
     }
 }
 
@@ -172,8 +184,7 @@ public sealed class SetRolePermissionsHandler(IRoleRepository repo)
         var role = await repo.GetByIdAsync(req.RoleId, ct)
             ?? throw new NotFoundException(nameof(Role), req.RoleId);
 
-        role.SetPermissions(req.Permissions.Select(p => (p.Resource, p.Action)));
-        await repo.UpdateAsync(role, ct);
+        await repo.SetPermissionsAsync(req.RoleId, req.Permissions.Select(p => (p.Resource, p.Action)), ct);
     }
 }
 
@@ -209,7 +220,9 @@ public sealed record CreateApiKeyCommand(
     int ExpiresInDays = 365,
     string? AllowedScopes = null) : ICommand<CreateApiKeyResult>;
 
-public sealed class CreateApiKeyHandler(IApiKeyRepository repo)
+public sealed class CreateApiKeyHandler(
+    IApiKeyRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<CreateApiKeyCommand, CreateApiKeyResult>
 {
     public async Task<CreateApiKeyResult> Handle(CreateApiKeyCommand req, CancellationToken ct)
@@ -222,6 +235,9 @@ public sealed class CreateApiKeyHandler(IApiKeyRepository repo)
 
         var apiKey = ApiKey.Create(req.Name, keyHash, prefix, req.TenantId, expiresAt, req.AllowedScopes);
         await repo.AddAsync(apiKey, ct);
+
+        await eventPublisher.PublishAsync(
+            new ApiKeyCreatedIntegrationEvent(apiKey.Id, req.Name, req.TenantId), ct);
 
         return new CreateApiKeyResult(apiKey.Id, rawKey, prefix, expiresAt);
     }
@@ -264,14 +280,19 @@ public sealed class GetApiKeysHandler(IApiKeyRepository repo)
 public sealed record GetAuditLogsQuery(
     int Page = 1, int PageSize = 50,
     Guid? TenantId = null,
-    string? Resource = null) : IQuery<PagedResult<AuditLogDto>>;
+    string? Resource = null,
+    Guid? UserId = null,
+    DateTime? From = null,
+    DateTime? To = null) : IQuery<PagedResult<AuditLogDto>>;
 
 public sealed class GetAuditLogsHandler(IAuditLogRepository repo)
     : IQueryHandler<GetAuditLogsQuery, PagedResult<AuditLogDto>>
 {
     public async Task<PagedResult<AuditLogDto>> Handle(GetAuditLogsQuery req, CancellationToken ct)
     {
-        var (items, total) = await repo.GetPagedAsync(req.Page, req.PageSize, req.TenantId, req.Resource, ct);
+        var (items, total) = await repo.GetPagedAsync(
+            req.Page, req.PageSize, req.TenantId, req.Resource,
+            req.UserId, req.From, req.To, ct);
         var dtos = items.Select(l => new AuditLogDto(
             l.Id, l.UserId, l.Action, l.Resource,
             l.ResourceId, l.Details, l.IpAddress, l.Timestamp)).ToList();

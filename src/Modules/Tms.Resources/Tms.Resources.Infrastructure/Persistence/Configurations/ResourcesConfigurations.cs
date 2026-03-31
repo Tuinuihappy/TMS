@@ -40,7 +40,7 @@ public sealed class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Navigation(v => v.MaintenanceRecords)
             .HasField("_maintenanceRecords")
             .UsePropertyAccessMode(PropertyAccessMode.PreferField)
-            .AutoInclude(false);
+            .AutoInclude();
 
         builder.HasMany<InsuranceRecord>(v => v.InsuranceRecords)
             .WithOne().HasForeignKey(x => x.VehicleId)
@@ -48,7 +48,7 @@ public sealed class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Navigation(v => v.InsuranceRecords)
             .HasField("_insuranceRecords")
             .UsePropertyAccessMode(PropertyAccessMode.PreferField)
-            .AutoInclude(false);
+            .AutoInclude();
     }
 }
 
@@ -111,7 +111,7 @@ public sealed class DriverConfiguration : IEntityTypeConfiguration<Driver>
         builder.Navigation(d => d.HOSHistory)
             .HasField("_hosHistory")
             .UsePropertyAccessMode(PropertyAccessMode.PreferField)
-            .AutoInclude(false);
+            .AutoInclude();
     }
 }
 

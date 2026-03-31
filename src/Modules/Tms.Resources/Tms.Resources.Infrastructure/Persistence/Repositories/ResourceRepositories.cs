@@ -81,13 +81,18 @@ public sealed class VehicleRepository(ResourcesDbContext context) : IVehicleRepo
 
     public async Task UpdateAsync(Vehicle entity, CancellationToken ct = default)
     {
-        context.Vehicles.Update(entity);
         await context.SaveChangesAsync(ct);
     }
 
     public async Task DeleteAsync(Vehicle entity, CancellationToken ct = default)
     {
         context.Vehicles.Remove(entity);
+        await context.SaveChangesAsync(ct);
+    }
+
+    public async Task AddMaintenanceRecordAsync(MaintenanceRecord record, CancellationToken ct = default)
+    {
+        await context.MaintenanceRecords.AddAsync(record, ct);
         await context.SaveChangesAsync(ct);
     }
 }
@@ -159,7 +164,6 @@ public sealed class DriverRepository(ResourcesDbContext context) : IDriverReposi
 
     public async Task UpdateAsync(Driver entity, CancellationToken ct = default)
     {
-        context.Drivers.Update(entity);
         await context.SaveChangesAsync(ct);
     }
 

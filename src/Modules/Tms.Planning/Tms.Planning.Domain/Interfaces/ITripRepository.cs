@@ -14,4 +14,5 @@ public interface ITripRepository : IRepository<Trip>
         CancellationToken ct = default);
     Task<IReadOnlyList<Trip>> GetByDateAsync(DateOnly date, Guid tenantId, CancellationToken ct = default);
     Task<string> GenerateTripNumberAsync(CancellationToken ct = default);
+    Task AddStopAsync(Stop stop, CancellationToken ct = default);
 }

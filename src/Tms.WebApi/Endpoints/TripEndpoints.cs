@@ -114,6 +114,14 @@ public static class TripEndpoints
         })
         .WithName("CancelTrip").WithSummary("ยกเลิก Trip");
 
+        // PUT /api/trips/{id}/complete
+        group.MapPut("/{id:guid}/complete", async (Guid id, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new CompleteTripCommand(id), ct);
+            return Results.NoContent();
+        })
+        .WithName("CompleteTrip").WithSummary("จบ Trip");
+
         // PUT /api/trips/{id}/reassign
         group.MapPut("/{id:guid}/reassign", async (
             Guid id, AssignResourcesRequest req, ISender sender, CancellationToken ct) =>

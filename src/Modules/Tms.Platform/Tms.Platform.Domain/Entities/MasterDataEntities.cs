@@ -98,6 +98,7 @@ public sealed class Holiday : AggregateRoot
     private Holiday() { }
 
     public static Holiday Create(DateTime date, string description, Guid tenantId) =>
-        new() { Date = date.Date, Description = description,
+        new() { Date = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc),
+                Description = description,
                 Year = date.Year, TenantId = tenantId };
 }

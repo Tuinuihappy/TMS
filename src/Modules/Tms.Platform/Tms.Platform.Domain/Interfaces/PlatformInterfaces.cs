@@ -51,6 +51,7 @@ public interface IUserRepository : IRepository<User>
 public interface IRoleRepository : IRepository<Role>
 {
     Task<IReadOnlyList<Role>> GetAllByTenantAsync(Guid tenantId, CancellationToken ct = default);
+    Task SetPermissionsAsync(Guid roleId, IEnumerable<(string resource, string action)> perms, CancellationToken ct = default);
 }
 
 public interface IApiKeyRepository : IRepository<ApiKey>
@@ -64,5 +65,7 @@ public interface IAuditLogRepository
     Task AddAsync(AuditLog log, CancellationToken ct = default);
     Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize, Guid? tenantId = null,
-        string? resource = null, CancellationToken ct = default);
+        string? resource = null, Guid? userId = null,
+        DateTime? from = null, DateTime? to = null,
+        CancellationToken ct = default);
 }

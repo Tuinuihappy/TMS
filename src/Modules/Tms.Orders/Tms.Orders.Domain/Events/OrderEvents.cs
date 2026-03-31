@@ -28,3 +28,11 @@ public sealed record OrderCancelledEvent(
     public Guid EventId { get; } = Guid.NewGuid();
     public DateTime OccurredAt { get; } = DateTime.UtcNow;
 }
+
+public sealed record OrderAmendedEvent(
+    Guid OrderId,
+    string OrderNumber) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+}

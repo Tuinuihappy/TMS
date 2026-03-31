@@ -2,6 +2,7 @@ using Tms.Resources.Domain.Entities;
 using Tms.Resources.Domain.Interfaces;
 using Tms.SharedKernel.Application;
 using Tms.SharedKernel.Exceptions;
+using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Resources.Application.Features;
 
@@ -11,6 +12,8 @@ public sealed record VehicleTypeDto(Guid Id, string Name, string Category, decim
 public sealed record VehicleDto(Guid Id, string PlateNumber, Guid VehicleTypeId, string Status, string Ownership, string? SubcontractorName, decimal CurrentOdometerKm, DateTime? RegistrationExpiry, DateTime CreatedAt);
 
 public sealed record DriverDto(Guid Id, string EmployeeCode, string FullName, string? PhoneNumber, string Status, string LicenseType, string LicenseNumber, DateTime LicenseExpiry, decimal PerformanceScore, DateTime CreatedAt);
+
+public sealed record HOSRecordDto(Guid Id, DateOnly Date, decimal DrivingHours, decimal RestingHours, Guid? TripId, DateTime CreatedAt);
 
 // ══════════════════════════════════════════════════════════════════════════
 // VEHICLE COMMANDS
@@ -44,14 +47,43 @@ public sealed class CreateVehicleHandler(IVehicleRepository repo)
 
 public sealed record ChangeVehicleStatusCommand(Guid VehicleId, string NewStatus) : ICommand;
 
-public sealed class ChangeVehicleStatusHandler(IVehicleRepository repo)
+public sealed class ChangeVehicleStatusHandler(
+    IVehicleRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<ChangeVehicleStatusCommand>
 {
     public async Task Handle(ChangeVehicleStatusCommand request, CancellationToken ct)
     {
         var vehicle = await repo.GetByIdAsync(request.VehicleId, ct)
             ?? throw new NotFoundException(nameof(Vehicle), request.VehicleId);
+        var oldStatus = vehicle.Status.ToString();
         vehicle.ChangeStatus(Enum.Parse<VehicleStatus>(request.NewStatus, ignoreCase: true));
+        await repo.UpdateAsync(vehicle, ct);
+
+        await eventPublisher.PublishAsync(
+            new VehicleStatusChangedIntegrationEvent(
+                vehicle.Id, vehicle.PlateNumber, oldStatus, vehicle.Status.ToString()), ct);
+    }
+}
+
+// ── Update Vehicle ──────────────────────────────────────────────────────
+public sealed record UpdateVehicleCommand(
+    Guid VehicleId,
+    string? SubcontractorName = null,
+    DateTime? RegistrationExpiry = null,
+    decimal? CurrentOdometerKm = null) : ICommand;
+
+public sealed class UpdateVehicleHandler(IVehicleRepository repo)
+    : ICommandHandler<UpdateVehicleCommand>
+{
+    public async Task Handle(UpdateVehicleCommand request, CancellationToken ct)
+    {
+        var vehicle = await repo.GetByIdAsync(request.VehicleId, ct)
+            ?? throw new NotFoundException(nameof(Vehicle), request.VehicleId);
+
+        if (request.CurrentOdometerKm.HasValue)
+            vehicle.UpdateOdometer(request.CurrentOdometerKm.Value);
+
         await repo.UpdateAsync(vehicle, ct);
     }
 }
@@ -70,8 +102,7 @@ public sealed class AddMaintenanceHandler(IVehicleRepository repo)
         var record = MaintenanceRecord.Create(
             vehicle.Id, request.Type, request.ScheduledDate,
             request.OdometerAtService, request.Notes);
-        vehicle.AddMaintenance(record);
-        await repo.UpdateAsync(vehicle, ct);
+        await repo.AddMaintenanceRecordAsync(record, ct);
     }
 }
 
@@ -125,7 +156,17 @@ public sealed class GetAvailableVehiclesHandler(IVehicleRepository repo)
         return items.Select(GetVehiclesHandler.MapDto).ToList();
     }
 }
-
+// ── Vehicle Expiry Alerts ──────────────────────────────────────────────
+public sealed record GetVehicleExpiryAlertsQuery(Guid TenantId, int WithinDays = 30) : IQuery<List<VehicleDto>>;
+public sealed class GetVehicleExpiryAlertsHandler(IVehicleRepository repo)
+    : IQueryHandler<GetVehicleExpiryAlertsQuery, List<VehicleDto>>
+{
+    public async Task<List<VehicleDto>> Handle(GetVehicleExpiryAlertsQuery request, CancellationToken ct)
+    {
+        var items = await repo.GetExpiryAlertsAsync(request.TenantId, request.WithinDays, ct);
+        return items.Select(GetVehiclesHandler.MapDto).ToList();
+    }
+}
 // ══════════════════════════════════════════════════════════════════════════
 // DRIVER COMMANDS
 // ══════════════════════════════════════════════════════════════════════════
@@ -152,7 +193,9 @@ public sealed class CreateDriverHandler(IDriverRepository repo)
 }
 
 public sealed record ChangeDriverStatusCommand(Guid DriverId, string NewStatus, string? SuspendReason = null) : ICommand;
-public sealed class ChangeDriverStatusHandler(IDriverRepository repo)
+public sealed class ChangeDriverStatusHandler(
+    IDriverRepository repo,
+    IIntegrationEventPublisher eventPublisher)
     : ICommandHandler<ChangeDriverStatusCommand>
 {
     public async Task Handle(ChangeDriverStatusCommand request, CancellationToken ct)
@@ -160,11 +203,50 @@ public sealed class ChangeDriverStatusHandler(IDriverRepository repo)
         var driver = await repo.GetByIdAsync(request.DriverId, ct)
             ?? throw new NotFoundException(nameof(Driver), request.DriverId);
 
+        var oldStatus = driver.Status.ToString();
+
         if (request.NewStatus.Equals("Suspended", StringComparison.OrdinalIgnoreCase))
             driver.Suspend(request.SuspendReason ?? "No reason provided");
         else
             driver.ChangeStatus(Enum.Parse<DriverStatus>(request.NewStatus, ignoreCase: true));
 
+        await repo.UpdateAsync(driver, ct);
+
+        await eventPublisher.PublishAsync(
+            new DriverStatusChangedIntegrationEvent(
+                driver.Id, driver.EmployeeCode, oldStatus, driver.Status.ToString()), ct);
+    }
+}
+
+// ── Update Driver ──────────────────────────────────────────────────────
+public sealed record UpdateDriverCommand(
+    Guid DriverId,
+    string? FullName = null,
+    string? PhoneNumber = null,
+    string? LicenseNumber = null,
+    string? LicenseType = null,
+    DateTime? LicenseExpiryDate = null) : ICommand;
+
+public sealed class UpdateDriverHandler(IDriverRepository repo)
+    : ICommandHandler<UpdateDriverCommand>
+{
+    public async Task Handle(UpdateDriverCommand request, CancellationToken ct)
+    {
+        var driver = await repo.GetByIdAsync(request.DriverId, ct)
+            ?? throw new NotFoundException(nameof(Driver), request.DriverId);
+
+        // Build new license if any license field changed
+        LicenseInfo? newLicense = null;
+        if (request.LicenseNumber is not null || request.LicenseType is not null || request.LicenseExpiryDate.HasValue)
+        {
+            var current = driver.License;
+            newLicense = new LicenseInfo(
+                request.LicenseNumber ?? current.LicenseNumber,
+                request.LicenseType ?? current.LicenseType,
+                request.LicenseExpiryDate ?? current.ExpiryDate);
+        }
+
+        driver.UpdateInfo(request.FullName, request.PhoneNumber, newLicense);
         await repo.UpdateAsync(driver, ct);
     }
 }
@@ -216,5 +298,37 @@ public sealed class GetAvailableDriversHandler(IDriverRepository repo)
     {
         var items = await repo.GetAvailableAsync(request.TenantId, request.RequiredLicenseType, ct);
         return items.Select(GetDriversHandler.MapDto).ToList();
+    }
+}
+
+// ── Driver Expiry Alerts ──────────────────────────────────────────────
+public sealed record GetDriverExpiryAlertsQuery(Guid TenantId, int WithinDays = 30) : IQuery<List<DriverDto>>;
+public sealed class GetDriverExpiryAlertsHandler(IDriverRepository repo)
+    : IQueryHandler<GetDriverExpiryAlertsQuery, List<DriverDto>>
+{
+    public async Task<List<DriverDto>> Handle(GetDriverExpiryAlertsQuery request, CancellationToken ct)
+    {
+        var items = await repo.GetExpiryAlertsAsync(request.TenantId, request.WithinDays, ct);
+        return items.Select(GetDriversHandler.MapDto).ToList();
+    }
+}
+
+// ── Driver HOS History ────────────────────────────────────────────────
+public sealed record GetDriverHOSQuery(Guid DriverId, DateOnly? Date = null) : IQuery<List<HOSRecordDto>>;
+public sealed class GetDriverHOSHandler(IDriverRepository repo)
+    : IQueryHandler<GetDriverHOSQuery, List<HOSRecordDto>>
+{
+    public async Task<List<HOSRecordDto>> Handle(GetDriverHOSQuery request, CancellationToken ct)
+    {
+        var driver = await repo.GetByIdAsync(request.DriverId, ct)
+            ?? throw new NotFoundException(nameof(Driver), request.DriverId);
+
+        var records = driver.HOSHistory.AsEnumerable();
+        if (request.Date.HasValue)
+            records = records.Where(h => h.Date == request.Date.Value);
+
+        return records.OrderByDescending(h => h.Date)
+            .Select(h => new HOSRecordDto(h.Id, h.Date, h.DrivingHours, h.RestingHours, h.TripId, h.CreatedAt))
+            .ToList();
     }
 }

@@ -13,6 +13,6 @@ public sealed class PlanningDbContextFactory : IDesignTimeDbContextFactory<Plann
         var conn = Environment.GetEnvironmentVariable("ConnectionStrings__TmsDb") ?? DefaultConn;
         var optionsBuilder = new DbContextOptionsBuilder<PlanningDbContext>();
         optionsBuilder.UseNpgsql(conn, x => x.MigrationsHistoryTable("__EFMigrationsHistory", "pln"));
-        return new PlanningDbContext(optionsBuilder.Options);
+        return new PlanningDbContext(optionsBuilder.Options, Tms.SharedKernel.Application.NullPublisher.Instance);
     }
 }

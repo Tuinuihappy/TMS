@@ -14,4 +14,5 @@ public interface IShipmentRepository : IRepository<Shipment>
         CancellationToken ct = default);
     Task<IReadOnlyList<Shipment>> GetByTripIdAsync(Guid tripId, CancellationToken ct = default);
     Task<string> GenerateShipmentNumberAsync(CancellationToken ct = default);
+    Task AddPodRecordAsync(PODRecord pod, CancellationToken ct = default);
 }

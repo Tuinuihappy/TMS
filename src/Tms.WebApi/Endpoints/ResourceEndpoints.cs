@@ -14,10 +14,22 @@ public record AddMaintenanceRequest(
     string Type, DateTime ScheduledDate,
     decimal? OdometerAtService = null, string? Notes = null);
 
+public record UpdateVehicleRequest(
+    string? SubcontractorName = null,
+    DateTime? RegistrationExpiry = null,
+    decimal? CurrentOdometerKm = null);
+
 public record CreateDriverRequest(
     string EmployeeCode, string FullName, Guid TenantId,
     string LicenseNumber, string LicenseType, DateTime LicenseExpiryDate,
     string? PhoneNumber = null);
+
+public record UpdateDriverRequest(
+    string? FullName = null,
+    string? PhoneNumber = null,
+    string? LicenseNumber = null,
+    string? LicenseType = null,
+    DateTime? LicenseExpiryDate = null);
 
 public static class ResourceEndpoints
 {
@@ -56,12 +68,31 @@ public static class ResourceEndpoints
         })
         .WithName("GetAvailableVehicles").WithSummary("รถที่พร้อมใช้ (Assignment)");
 
+        vehicles.MapGet("/expiry-alerts", async (
+            ISender sender, Guid? tenantId = null, int withinDays = 30,
+            CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(
+                new GetVehicleExpiryAlertsQuery(tenantId ?? Guid.Empty, withinDays), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetVehicleExpiryAlerts").WithSummary("รถที่ใกล้หมดอายุ");
+
         vehicles.MapGet("/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetVehicleByIdQuery(id), ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         })
         .WithName("GetVehicleById").WithSummary("ข้อมูลรถ Detail");
+
+        vehicles.MapPut("/{id:guid}", async (
+            Guid id, UpdateVehicleRequest req, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateVehicleCommand(
+                id, req.SubcontractorName, req.RegistrationExpiry, req.CurrentOdometerKm), ct);
+            return Results.NoContent();
+        })
+        .WithName("UpdateVehicle").WithSummary("แก้ไขข้อมูลรถ");
 
         vehicles.MapPut("/{id:guid}/status", async (
             Guid id, ChangeStatusRequest req, ISender sender, CancellationToken ct) =>
@@ -80,12 +111,6 @@ public static class ResourceEndpoints
             return Results.NoContent();
         })
         .WithName("AddMaintenance").WithSummary("บันทึกซ่อมบำรุง");
-
-        vehicles.MapGet("/expiry-alerts", async (
-            ISender sender, Guid? tenantId = null,
-            CancellationToken ct = default) =>
-            Results.Ok(new { Message = "Expiry alerts — query via GetVehicles with date filter" }))
-        .WithName("GetVehicleExpiryAlerts").WithSummary("รถที่ใกล้หมดอายุ");
 
         // ── Drivers ─────────────────────────────────────────────────────────
         var drivers = app.MapGroup("/api/drivers").WithTags("Driver Management");
@@ -120,12 +145,32 @@ public static class ResourceEndpoints
         })
         .WithName("GetAvailableDrivers").WithSummary("คนขับพร้อมงาน");
 
+        drivers.MapGet("/expiry-alerts", async (
+            ISender sender, Guid? tenantId = null, int withinDays = 30,
+            CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(
+                new GetDriverExpiryAlertsQuery(tenantId ?? Guid.Empty, withinDays), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetDriverExpiryAlerts").WithSummary("ใบขับขี่ใกล้หมด");
+
         drivers.MapGet("/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetDriverByIdQuery(id), ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         })
         .WithName("GetDriverById").WithSummary("คนขับ Detail");
+
+        drivers.MapPut("/{id:guid}", async (
+            Guid id, UpdateDriverRequest req, ISender sender, CancellationToken ct) =>
+        {
+            await sender.Send(new UpdateDriverCommand(
+                id, req.FullName, req.PhoneNumber,
+                req.LicenseNumber, req.LicenseType, req.LicenseExpiryDate), ct);
+            return Results.NoContent();
+        })
+        .WithName("UpdateDriver").WithSummary("แก้ไขข้อมูลคนขับ");
 
         drivers.MapPut("/{id:guid}/status", async (
             Guid id, ChangeStatusRequest req, ISender sender, CancellationToken ct) =>
@@ -135,9 +180,14 @@ public static class ResourceEndpoints
         })
         .WithName("ChangeDriverStatus").WithSummary("เปลี่ยนสถานะคนขับ");
 
-        drivers.MapGet("/expiry-alerts", async (ISender sender, CancellationToken ct) =>
-            Results.Ok(new { Message = "License expiry alerts — filter via GetDrivers" }))
-        .WithName("GetDriverExpiryAlerts").WithSummary("ใบขับขี่ใกล้หมด");
+        drivers.MapGet("/{id:guid}/hos", async (
+            Guid id, ISender sender, DateOnly? date = null,
+            CancellationToken ct = default) =>
+        {
+            var result = await sender.Send(new GetDriverHOSQuery(id, date), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetDriverHOS").WithSummary("ประวัติ HOS คนขับ");
 
         return app;
     }

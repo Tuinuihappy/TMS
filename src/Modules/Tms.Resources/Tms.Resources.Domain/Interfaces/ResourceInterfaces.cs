@@ -15,6 +15,7 @@ public interface IVehicleRepository : IRepository<Vehicle>
         Guid tenantId, decimal? minPayloadKg = null, bool includeDetails = false,
         CancellationToken ct = default);
     Task<IReadOnlyList<Vehicle>> GetExpiryAlertsAsync(Guid tenantId, int withinDays = 30, CancellationToken ct = default);
+    Task AddMaintenanceRecordAsync(MaintenanceRecord record, CancellationToken ct = default);
 }
 
 public interface IDriverRepository : IRepository<Driver>

@@ -16,9 +16,11 @@ public static class ExecutionModule
         IConfiguration configuration)
     {
         services.AddDbContext<ExecutionDbContext>(options =>
-            options.UseNpgsql(
-                configuration.GetConnectionString("TmsDb"),
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "exe")));
+            options
+                .UseNpgsql(
+                    configuration.GetConnectionString("TmsDb"),
+                    npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "exe"))
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         // Repositories
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
