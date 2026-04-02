@@ -20,6 +20,8 @@ public sealed class Shipment : AggregateRoot
     public string? AddressProvince { get; private set; }
     public double? AddressLatitude { get; private set; }
     public double? AddressLongitude { get; private set; }
+    /// <summary>FK ไปยัง Master Data Location — ใช้โดย Geofence auto-arrive</summary>
+    public Guid? DestinationLocationId { get; private set; }
 
     // Exception
     public string? ExceptionReason { get; private set; }
@@ -48,7 +50,8 @@ public sealed class Shipment : AggregateRoot
         string? addressStreet = null,
         string? addressProvince = null,
         double? lat = null,
-        double? lng = null)
+        double? lng = null,
+        Guid? destinationLocationId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(shipmentNumber);
 
@@ -65,6 +68,7 @@ public sealed class Shipment : AggregateRoot
             AddressProvince = addressProvince,
             AddressLatitude = lat,
             AddressLongitude = lng,
+            DestinationLocationId = destinationLocationId,
             CreatedAt = DateTime.UtcNow
         };
     }

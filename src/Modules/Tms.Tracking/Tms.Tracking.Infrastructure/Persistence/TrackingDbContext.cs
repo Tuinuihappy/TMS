@@ -1,22 +1,22 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tms.Planning.Domain.Entities;
 using Tms.SharedKernel.Application;
+using Tms.Tracking.Domain.Entities;
 
-namespace Tms.Planning.Infrastructure.Persistence;
+namespace Tms.Tracking.Infrastructure.Persistence;
 
-public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> options, IPublisher publisher) : DbContext(options)
+public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> options, IPublisher publisher)
+    : DbContext(options)
 {
-    public DbSet<Trip> Trips => Set<Trip>();
-    public DbSet<Stop> Stops => Set<Stop>();
-    public DbSet<RoutePlan> RoutePlans => Set<RoutePlan>();
-    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
-    public DbSet<OptimizationRequest> OptimizationRequests => Set<OptimizationRequest>();
+    public DbSet<VehiclePosition> VehiclePositions => Set<VehiclePosition>();
+    public DbSet<CurrentVehicleState> CurrentVehicleStates => Set<CurrentVehicleState>();
+    public DbSet<GeoZone> GeoZones => Set<GeoZone>();
+    public DbSet<ZoneEvent> ZoneEvents => Set<ZoneEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("pln");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(PlanningDbContext).Assembly);
+        modelBuilder.HasDefaultSchema("trk");
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TrackingDbContext).Assembly);
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()
             .Where(e => typeof(Tms.SharedKernel.Domain.AggregateRoot).IsAssignableFrom(e.ClrType)))

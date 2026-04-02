@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Planning.Application;
 using Tms.Planning.Application.Features;
 using Tms.Planning.Domain.Interfaces;
 using Tms.Planning.Infrastructure.Persistence;
@@ -23,6 +24,9 @@ public static class PlanningModule
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<IRoutePlanRepository, RoutePlanRepository>();
+        services.AddScoped<IOptimizationRequestRepository, OptimizationRequestRepository>();
+        services.AddScoped<GreedyRouteOptimizer>();
 
         services.AddMediatR(cfg =>
         {

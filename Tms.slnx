@@ -28,6 +28,11 @@
     <Project Path="src/Modules/Tms.Platform/Tms.Platform.Application/Tms.Platform.Application.csproj" />
     <Project Path="src/Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Tracking/">
+    <Project Path="src/Modules/Tms.Tracking/Tms.Tracking.Domain/Tms.Tracking.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Tracking/Tms.Tracking.Application/Tms.Tracking.Application.csproj" />
+    <Project Path="src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tms.Orders.UnitTests/Tms.Orders.UnitTests.csproj" />
     <Project Path="tests/Tms.WebApi.IntegrationTests/Tms.WebApi.IntegrationTests.csproj" />

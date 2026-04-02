@@ -13,6 +13,9 @@ public interface IShipmentRepository : IRepository<Shipment>
         Guid? tenantId = null,
         CancellationToken ct = default);
     Task<IReadOnlyList<Shipment>> GetByTripIdAsync(Guid tripId, CancellationToken ct = default);
+    /// <summary>Used by Geofence handler to find in-progress shipments for a tenant</summary>
+    Task<IReadOnlyList<Shipment>> GetByTenantPendingAsync(Guid tenantId, CancellationToken ct = default);
     Task<string> GenerateShipmentNumberAsync(CancellationToken ct = default);
     Task AddPodRecordAsync(PODRecord pod, CancellationToken ct = default);
 }
+

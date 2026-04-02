@@ -129,6 +129,98 @@ public static class ShipmentEndpoints
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Phase 2 — POD Document Endpoints (เพิ่มเติม)
+// ══════════════════════════════════════════════════════════════════════
+
+public static class PodDocumentEndpoints
+{
+    public static IEndpointRouteBuilder MapPodDocumentEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/execution/pod").WithTags("POD");
+
+        // POST /api/execution/pod/{shipmentId}/attachments  — Upload รูป/ลายเซ็น
+        group.MapPost("/{shipmentId:guid}/attachments", async (
+            Guid shipmentId,
+            IFormFile file,
+            ISender sender,
+            Guid tenantId,
+            string verificationType = "BoxPhoto",
+            double? lat = null,
+            double? lng = null,
+            CancellationToken ct = default) =>
+        {
+            await using var stream = file.OpenReadStream();
+            var blobUrl = await sender.Send(
+                new Tms.Execution.Application.Features.UploadPodAttachmentCommand(
+                    shipmentId, tenantId, verificationType,
+                    stream, file.FileName, file.ContentType,
+                    lat, lng), ct);
+            return Results.Ok(new { BlobUrl = blobUrl });
+        })
+        .WithName("UploadPodAttachment")
+        .WithSummary("Upload รูปถ่ายหรือลายเซ็น (Driver)")
+        .DisableAntiforgery();
+
+        // PUT /api/execution/pod/{shipmentId}/submit
+        group.MapPut("/{shipmentId:guid}/submit", async (
+            Guid shipmentId,
+            SubmitPodRequest req,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new Tms.Execution.Application.Features.SubmitPodCommand(
+                shipmentId, req.CaptureLatitude, req.CaptureLongitude), ct);
+            return Results.NoContent();
+        })
+        .WithName("SubmitPod")
+        .WithSummary("Submit POD → Auto หรือ Pending Approval");
+
+        // GET /api/execution/pod/{shipmentId}/evaluate
+        group.MapGet("/{shipmentId:guid}/evaluate", async (
+            Guid shipmentId, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(
+                new Tms.Execution.Application.Features.GetPodForEvaluationQuery(shipmentId), ct);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("GetPodForEvaluation")
+        .WithSummary("ดู POD เพื่อ Review (Dispatcher)");
+
+        // POST /api/execution/pod/{shipmentId}/evaluate  — Approve or Reject
+        group.MapPost("/{shipmentId:guid}/evaluate", async (
+            Guid shipmentId,
+            EvaluatePodRequest req,
+            ISender sender,
+            CancellationToken ct) =>
+        {
+            await sender.Send(new Tms.Execution.Application.Features.EvaluatePodCommand(
+                shipmentId, req.EvaluatedBy, req.IsApproved, req.RejectReason), ct);
+            return Results.NoContent();
+        })
+        .WithName("EvaluatePod")
+        .WithSummary("Approve / Reject POD (Dispatcher)");
+
+        // POST /api/execution/pod/{shipmentId}/generate-pdf
+        group.MapPost("/{shipmentId:guid}/generate-pdf", async (
+            Guid shipmentId, ISender sender, CancellationToken ct) =>
+        {
+            var url = await sender.Send(
+                new Tms.Execution.Application.Features.GeneratePodPdfCommand(shipmentId), ct);
+            return Results.Ok(new { PdfUrl = url });
+        })
+        .WithName("GeneratePodPdf")
+        .WithSummary("สร้าง E-Receipt PDF");
+
+        return app;
+    }
+}
+
+// ── Request DTOs ────────────────────────────────────────────────────────
+public sealed record SubmitPodRequest(double? CaptureLatitude, double? CaptureLongitude);
+public sealed record EvaluatePodRequest(Guid EvaluatedBy, bool IsApproved, string? RejectReason);
+
+
 // ── Request DTOs ────────────────────────────────────────────────────────
 public sealed record DeliverItemRequest(Guid ShipmentItemId, int DeliveredQty);
 public sealed record PodRequest(

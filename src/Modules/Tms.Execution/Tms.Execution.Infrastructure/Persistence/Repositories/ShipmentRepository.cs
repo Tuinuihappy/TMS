@@ -50,6 +50,13 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Shipment>> GetByTenantPendingAsync(Guid tenantId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Where(s => s.TenantId == tenantId
+                     && (s.Status == Execution.Domain.Enums.ShipmentStatus.PickedUp
+                      || s.Status == Execution.Domain.Enums.ShipmentStatus.InTransit))
+            .ToListAsync(ct);
+
     public async Task AddAsync(Shipment entity, CancellationToken ct = default)
     {
         await context.Shipments.AddAsync(entity, ct);

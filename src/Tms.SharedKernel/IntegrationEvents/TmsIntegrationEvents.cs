@@ -111,3 +111,38 @@ public sealed record ShipmentExceptionIntegrationEvent(
     Guid OrderId,
     string ReasonCode,
     string Reason) : IntegrationEvent;
+
+// ══════════════════════════════════════════════════════════════════════
+// TRACKING MODULE — Geofencing & ETA Events (Phase 2)
+// ══════════════════════════════════════════════════════════════════════
+
+public sealed record VehicleEnteredZoneIntegrationEvent(
+    Guid VehicleId,
+    Guid ZoneId,
+    Guid LocationId,
+    DateTime Timestamp,
+    Guid TenantId) : IntegrationEvent;
+
+public sealed record VehicleETAUpdatedIntegrationEvent(
+    Guid TripId,
+    int StopSequence,
+    Guid OrderId,
+    DateTime EstimatedArrivalTime) : IntegrationEvent;
+
+// ══════════════════════════════════════════════════════════════════════
+// PLANNING MODULE — Route Plan Events (Phase 2)
+// ══════════════════════════════════════════════════════════════════════
+
+public sealed record RoutePlanLockedIntegrationEvent(
+    Guid RoutePlanId,
+    Guid? VehicleTypeId,
+    DateOnly PlannedDate,
+    Guid TenantId,
+    List<RoutePlanStopSnapshot> Stops) : IntegrationEvent;
+
+public sealed record RoutePlanStopSnapshot(
+    int Sequence,
+    Guid OrderId,
+    double Latitude,
+    double Longitude,
+    DateTime? EstimatedArrivalTime);

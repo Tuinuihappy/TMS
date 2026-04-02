@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Execution.Application.Features;
 using Tms.Execution.Application.Features.UpdateShipmentStatus;
 using Tms.Execution.Domain.Interfaces;
 using Tms.Execution.Infrastructure.Persistence;
@@ -24,6 +25,8 @@ public static class ExecutionModule
 
         // Repositories
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
+        services.AddScoped<IPODDocumentRepository, PODDocumentRepository>();
+        services.AddScoped<IBlobStorageService, LocalBlobStorageService>();
 
         // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>

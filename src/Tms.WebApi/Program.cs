@@ -7,6 +7,7 @@ using Tms.Platform.Infrastructure;
 using Tms.Planning.Infrastructure;
 using Tms.Resources.Infrastructure;
 using Tms.SharedKernel.Application;
+using Tms.Tracking.Infrastructure;
 using Tms.WebApi.Endpoints;
 using Tms.WebApi.Infrastructure;
 
@@ -26,7 +27,8 @@ builder.Services
     .AddPlanningModule(builder.Configuration)
     .AddExecutionModule(builder.Configuration)
     .AddResourcesModule(builder.Configuration)
-    .AddPlatformModule(builder.Configuration);
+    .AddPlatformModule(builder.Configuration)
+    .AddTrackingModule(builder.Configuration);
 
 // ──── API ─────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -87,10 +89,14 @@ if (!string.IsNullOrWhiteSpace(jwtAuthority))
 // ──── Endpoints ────────────────────────────────────────────────
 app.MapOrderEndpoints();
 app.MapShipmentEndpoints();
+app.MapPodDocumentEndpoints();
 app.MapResourceEndpoints();
 app.MapTripEndpoints();
+app.MapRoutePlanEndpoints();
 app.MapMasterDataEndpoints();
 app.MapIamEndpoints();
+app.MapTrackingEndpoints();
+app.MapNotificationEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
     .WithTags("Health");
@@ -108,6 +114,7 @@ if (app.Environment.IsDevelopment())
         await sp.GetRequiredService<Tms.Orders.Infrastructure.Persistence.OrdersDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Planning.Infrastructure.Persistence.PlanningDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Execution.Infrastructure.Persistence.ExecutionDbContext>().Database.MigrateAsync();
+        await sp.GetRequiredService<Tms.Tracking.Infrastructure.Persistence.TrackingDbContext>().Database.MigrateAsync();
         Log.Information("All database migrations applied successfully.");
     }
     catch (Exception ex)

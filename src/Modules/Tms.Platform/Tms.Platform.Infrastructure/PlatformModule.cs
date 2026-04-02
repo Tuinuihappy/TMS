@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tms.Platform.Application.Features.Iam;
 using Tms.Platform.Application.Features.MasterData;
+using Tms.Platform.Application.Features.Notifications;
 using Tms.Platform.Domain.Interfaces;
 using Tms.Platform.Infrastructure.Persistence;
 using Tms.Platform.Infrastructure.Persistence.Repositories;
@@ -36,11 +37,16 @@ public static class PlatformModule
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
+        // Notification Repositories + Sender (Phase 2)
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationSender, StubNotificationSender>();
+
         // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(CreateCustomerHandler).Assembly);
             cfg.RegisterServicesFromAssembly(typeof(SyncUserHandler).Assembly);
+            cfg.RegisterServicesFromAssembly(typeof(SendNotificationHandler).Assembly);
             cfg.RegisterServicesFromAssembly(typeof(PlatformModule).Assembly);
         });
 

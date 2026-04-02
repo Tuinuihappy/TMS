@@ -11,6 +11,8 @@ public sealed class ExecutionDbContext(DbContextOptions<ExecutionDbContext> opti
     public DbSet<ShipmentItem> ShipmentItems => Set<ShipmentItem>();
     public DbSet<PODRecord> PODRecords => Set<PODRecord>();
     public DbSet<PODPhoto> PODPhotos => Set<PODPhoto>();
+    public DbSet<PODDocument> PODDocuments => Set<PODDocument>();
+    public DbSet<VerificationItem> VerificationItems => Set<VerificationItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

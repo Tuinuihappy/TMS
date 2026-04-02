@@ -22,5 +22,6 @@
     <ProjectReference Include="../Modules/Tms.Execution/Tms.Execution.Infrastructure/Tms.Execution.Infrastructure.csproj" />
     <ProjectReference Include="../Modules/Tms.Resources/Tms.Resources.Infrastructure/Tms.Resources.Infrastructure.csproj" />
     <ProjectReference Include="../Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="../Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
