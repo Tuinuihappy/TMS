@@ -1,5 +1,6 @@
 using MediatR;
 using Tms.Planning.Application.Features;
+using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.IntegrationEvents;
 
@@ -28,7 +29,7 @@ public sealed class RoutePlanLockedCreateTripHandler(ITripRepository tripRepo)
             trip.AddStop(
                 stop.Sequence,
                 stop.OrderId,
-                StopType.Delivery,
+                StopType.Dropoff,
                 addressName: null,
                 addressStreet: null,
                 addressProvince: null,

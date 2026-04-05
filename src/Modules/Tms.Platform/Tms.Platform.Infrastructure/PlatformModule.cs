@@ -41,6 +41,9 @@ public static class PlatformModule
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationSender, StubNotificationSender>();
 
+        // Audit Log Writer (bridges SharedKernel → Platform)
+        services.AddScoped<Tms.SharedKernel.Application.IAuditLogWriter, AuditLogWriter>();
+
         // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>
         {

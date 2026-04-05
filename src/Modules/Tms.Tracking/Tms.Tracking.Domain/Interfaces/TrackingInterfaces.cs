@@ -6,6 +6,7 @@ public interface IVehiclePositionRepository
 {
     Task BulkInsertAsync(IEnumerable<VehiclePosition> positions, CancellationToken ct = default);
     Task<IReadOnlyList<VehiclePosition>> GetHistoryAsync(Guid vehicleId, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<int> DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken ct = default);
 }
 
 public interface ICurrentVehicleStateRepository

@@ -177,7 +177,7 @@ public sealed class GeneratePodPdfHandler(
             ?? throw new NotFoundException("PODDocument", req.ShipmentId);
 
         // Stub: generate a simple text "PDF" placeholder
-        var pdfContent = $"E-Receipt\nPOD: {pod.DocumentReference}\nShipment: {pod.ShipmentId}\nDate: {pod.CapturedAt:yyyy-MM-dd HH:mm} UTC\nStatus: {pod.Status}"u8.ToArray();
+        var pdfContent = System.Text.Encoding.UTF8.GetBytes($"E-Receipt\nPOD: {pod.DocumentReference}\nShipment: {pod.ShipmentId}\nDate: {pod.CapturedAt:yyyy-MM-dd HH:mm} UTC\nStatus: {pod.Status}");
         using var stream = new MemoryStream(pdfContent);
         var url = await blobStorage.UploadAsync(stream, $"receipt_{pod.ShipmentId}.pdf", "application/pdf", ct);
         return url;

@@ -41,6 +41,11 @@ COPY src/Modules/Tms.Platform/Tms.Platform.Domain/Tms.Platform.Domain.csproj src
 COPY src/Modules/Tms.Platform/Tms.Platform.Application/Tms.Platform.Application.csproj src/Modules/Tms.Platform/Tms.Platform.Application/
 COPY src/Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj src/Modules/Tms.Platform/Tms.Platform.Infrastructure/
 
+# Modules — Tracking
+COPY src/Modules/Tms.Tracking/Tms.Tracking.Domain/Tms.Tracking.Domain.csproj src/Modules/Tms.Tracking/Tms.Tracking.Domain/
+COPY src/Modules/Tms.Tracking/Tms.Tracking.Application/Tms.Tracking.Application.csproj src/Modules/Tms.Tracking/Tms.Tracking.Application/
+COPY src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/
+
 # Restore dependencies (cached layer)
 RUN dotnet restore src/Tms.WebApi/Tms.WebApi.csproj
 

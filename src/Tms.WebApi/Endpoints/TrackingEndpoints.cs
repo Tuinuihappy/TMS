@@ -1,5 +1,6 @@
 using MediatR;
 using Tms.Tracking.Application.Features;
+using Tms.WebApi.Hubs;
 
 namespace Tms.WebApi.Endpoints;
 
@@ -14,13 +15,24 @@ public static class TrackingEndpoints
 
         // POST /api/tracking/positions  — Batch GPS ingest
         positions.MapPost("/", async (
-            IngestPositionRequest req, ISender sender, CancellationToken ct) =>
+            IngestPositionRequest req, ISender sender, IPublisher publisher, CancellationToken ct) =>
         {
+            var positions2 = req.Positions.Select(p =>
+                new PositionInputDto(p.Lat, p.Lng, p.Speed, p.Heading, p.IsEngineOn, p.Timestamp))
+                .ToList();
+
             await sender.Send(new IngestPositionsCommand(
-                req.VehicleId, req.TenantId, req.TripId,
-                req.Positions.Select(p =>
-                    new PositionInputDto(p.Lat, p.Lng, p.Speed, p.Heading, p.IsEngineOn, p.Timestamp))
-                    .ToList()), ct);
+                req.VehicleId, req.TenantId, req.TripId, positions2), ct);
+
+            // Push latest position to SignalR Live Map clients
+            if (positions2.Count > 0)
+            {
+                var latest = positions2.OrderByDescending(p => p.Timestamp).First();
+                await publisher.Publish(new VehiclePositionUpdatedNotification(
+                    req.VehicleId, req.TenantId,
+                    latest.Lat, latest.Lng, latest.Speed, latest.Timestamp), ct);
+            }
+
             return Results.NoContent();
         })
         .WithName("IngestPositions")

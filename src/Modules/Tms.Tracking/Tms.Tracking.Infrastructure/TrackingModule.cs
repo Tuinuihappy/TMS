@@ -38,6 +38,9 @@ public static class TrackingModule
         // Background worker for geofence checks
         services.AddHostedService<GeofenceBackgroundWorker>();
 
+        // Background worker: Data retention — clean old vehicle positions
+        services.AddHostedService<DataRetentionBackgroundWorker>();
+
         return services;
     }
 }

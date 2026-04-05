@@ -459,6 +459,124 @@ fi
 echo ""
 
 # ════════════════════════════════════════════════════════════════
+# 8. Tracking (Phase 2)
+# ════════════════════════════════════════════════════════════════
+echo -e "${CYAN}${BOLD}── [8/11] Tracking — GPS & Live Map ──────────────────────────${NC}"
+
+test_ep POST "/api/tracking/positions" "204" \
+    '{"vehicleId":"'"$VEHICLE_ID"'","tenantId":"'"$TENANT_ID"'","tripId":null,"positions":[{"lat":13.7563,"lng":100.5018,"speed":60,"heading":90,"isEngineOn":true,"timestamp":"2026-04-04T10:00:00Z"},{"lat":13.7600,"lng":100.5100,"speed":55,"heading":85,"isEngineOn":true,"timestamp":"2026-04-04T10:01:00Z"}]}' \
+    "POST /tracking/positions (GPS ingest)"
+
+test_ep GET "/api/tracking/vehicles" "200" "" "GET /tracking/vehicles (live map)"
+
+if [ -n "$VEHICLE_ID" ]; then
+    test_ep GET "/api/tracking/vehicles/$VEHICLE_ID/history?from=2026-04-01T00:00:00Z&to=2026-04-05T00:00:00Z" "200" "" \
+        "GET /tracking/vehicles/{id}/history"
+fi
+
+echo -e "${YELLOW}  ▸ ETA${NC}"
+if [ -n "$ORDER_ID" ]; then
+    test_ep GET "/api/tracking/orders/$ORDER_ID/eta" "200" "" "GET /tracking/orders/{id}/eta"
+fi
+
+echo -e "${YELLOW}  ▸ GeoZones${NC}"
+test_ep POST "/api/tracking/zones" "201" \
+    '{"name":"Bangkok Warehouse Zone","tenantId":"'"$TENANT_ID"'","type":"Circle","centerLat":13.7563,"centerLng":100.5018,"radiusMeters":500}' \
+    "POST /tracking/zones (create geofence)"
+ZONE_ID=$(get_id)
+echo "     → GeoZone ID: $ZONE_ID"
+
+test_ep GET "/api/tracking/zones" "200" "" "GET /tracking/zones (list)"
+
+if [ -n "$ZONE_ID" ]; then
+    test_ep PUT "/api/tracking/zones/$ZONE_ID" "204" \
+        '{"name":"Bangkok Main Zone (Updated)","centerLat":13.7563,"centerLng":100.5018,"radiusMeters":600}' \
+        "PUT /tracking/zones/{id}"
+fi
+
+echo ""
+
+# ════════════════════════════════════════════════════════════════
+# 9. Route Planning (Phase 2)
+# ════════════════════════════════════════════════════════════════
+echo -e "${CYAN}${BOLD}── [9/11] Route Planning ─────────────────────────────────────${NC}"
+
+VT_ID2=$(docker exec tms_postgres psql -U tms_admin -d tms_dev -t -A -c "SELECT \"Id\" FROM res.\"VehicleTypes\" LIMIT 1" 2>/dev/null | tr -d '[:space:]')
+
+test_ep POST "/api/planning/optimize" "202" \
+    '{"orders":[{"orderId":"'"$ORDER_ID"'","lat":13.7563,"lng":100.5018,"weightKg":500}],"tenantId":"'"$TENANT_ID"'","plannedDate":"2026-04-10","vehicleTypeId":"'"$VT_ID2"'","maxStopsPerRoute":20}' \
+    "POST /planning/optimize (VRP)"
+
+ROUTE_PLAN_ID=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$RESP_FILE'))
+    print(d.get('routePlanId','') or d.get('id',''))
+except: print('')" 2>/dev/null)
+echo "     → RoutePlan ID: $ROUTE_PLAN_ID"
+
+test_ep GET "/api/planning/plans?tenantId=$TENANT_ID" "200" "" "GET /planning/plans (list)"
+
+if [ -n "$ROUTE_PLAN_ID" ]; then
+    test_ep GET "/api/planning/plans/$ROUTE_PLAN_ID" "200" "" "GET /planning/plans/{id}"
+fi
+
+echo ""
+
+# ════════════════════════════════════════════════════════════════
+# 10. Notifications (Phase 2)
+# ════════════════════════════════════════════════════════════════
+echo -e "${CYAN}${BOLD}── [10/11] Notifications ─────────────────────────────────────${NC}"
+
+test_ep POST "/api/platform/notifications/test" "204" \
+    '{"channel":"Email","recipient":"test@tms.dev","body":"API test notification","tenantId":"'"$TENANT_ID"'"}' \
+    "POST /platform/notifications/test"
+
+test_ep GET "/api/platform/notifications/history" "200" "" "GET /platform/notifications/history"
+
+test_ep GET "/api/platform/notifications/templates" "200" "" "GET /platform/notifications/templates"
+
+echo ""
+
+# ════════════════════════════════════════════════════════════════
+# 11. Bulk Import & SignalR (Phase 2 new features)
+# ════════════════════════════════════════════════════════════════
+echo -e "${CYAN}${BOLD}── [11/11] Bulk Import & SignalR ──────────────────────────────${NC}"
+
+echo -e "${YELLOW}  ▸ CSV Import${NC}"
+cat > /tmp/tms_test_import.csv << CSVEOF
+CustomerId,Priority,PickupStreet,PickupProvince,DropoffStreet,DropoffProvince,ItemDescription,WeightKg,VolumeCBM,Quantity
+$ACTIVE_CUSTOMER_ID,Urgent,111 Phetchaburi Rd,Bangkok,222 Ratchada Rd,Bangkok,Imported Box A,15,0.3,2
+$ACTIVE_CUSTOMER_ID,Normal,333 Ladprao Rd,Bangkok,444 Vibhavadi Rd,Bangkok,Imported Box B,30,0.8,5
+CSVEOF
+
+TOTAL=$((TOTAL + 1))
+IMPORT_CODE=$(curl -s -o "$RESP_FILE" -w "%{http_code}" -X POST "$BASE/api/orders/import" -F "file=@/tmp/tms_test_import.csv" 2>/dev/null)
+if [ "$IMPORT_CODE" = "200" ]; then
+    PASS=$((PASS + 1))
+    IMPORT_BODY=$(cat "$RESP_FILE" 2>/dev/null)
+    printf "  ${GREEN}✅ %-55s${NC} → %s\n" "POST /orders/import (CSV)" "$IMPORT_CODE"
+    echo "     → $IMPORT_BODY"
+else
+    FAIL=$((FAIL + 1))
+    printf "  ${RED}❌ %-55s${NC} → %s (expected 200)\n" "POST /orders/import (CSV)" "$IMPORT_CODE"
+    echo "     ↳ $(cat "$RESP_FILE" 2>/dev/null | head -c 300)"
+fi
+
+echo -e "${YELLOW}  ▸ SignalR Hub${NC}"
+TOTAL=$((TOTAL + 1))
+SIGNALR_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/hubs/tracking/negotiate?negotiateVersion=1" 2>/dev/null)
+if [ "$SIGNALR_CODE" = "200" ]; then
+    PASS=$((PASS + 1))
+    printf "  ${GREEN}✅ %-55s${NC} → %s\n" "POST /hubs/tracking/negotiate (SignalR)" "$SIGNALR_CODE"
+else
+    FAIL=$((FAIL + 1))
+    printf "  ${RED}❌ %-55s${NC} → %s (expected 200)\n" "POST /hubs/tracking/negotiate (SignalR)" "$SIGNALR_CODE"
+fi
+
+echo ""
+
+# ════════════════════════════════════════════════════════════════
 # Summary
 # ════════════════════════════════════════════════════════════════
 echo -e "${BOLD}╔══════════════════════════════════════════════════════════════════╗${NC}"

@@ -24,6 +24,13 @@ public sealed class VehiclePositionRepository(TrackingDbContext context) : IVehi
             .OrderBy(p => p.Timestamp)
             .ToListAsync(ct);
     }
+
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken ct = default)
+    {
+        return await context.VehiclePositions
+            .Where(p => p.Timestamp < cutoffDate)
+            .ExecuteDeleteAsync(ct);
+    }
 }
 
 public sealed class CurrentVehicleStateRepository(TrackingDbContext context) : ICurrentVehicleStateRepository

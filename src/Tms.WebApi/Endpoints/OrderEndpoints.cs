@@ -79,6 +79,20 @@ public static class OrderEndpoints
         .WithName("CancelOrder")
         .WithSummary("ยกเลิก Order");
 
+        // POST /api/orders/import
+        group.MapPost("/import", async (
+            IFormFile file, ISender sender, CancellationToken ct) =>
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await sender.Send(
+                new Tms.Orders.Application.Features.ImportOrder.ImportOrdersCommand(
+                    stream, file.FileName), ct);
+            return Results.Ok(result);
+        })
+        .WithName("ImportOrders")
+        .WithSummary("Bulk Import Orders (CSV/Excel)")
+        .DisableAntiforgery();
+
         return app;
     }
 }

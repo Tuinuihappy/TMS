@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -19,15 +20,12 @@ public sealed class TrackingDbContextFactory : IDesignTimeDbContextFactory<Track
             config.GetConnectionString("TmsDb") ?? "Host=localhost;Database=tms_db;Username=postgres;Password=postgres",
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "trk"));
 
-        return new TrackingDbContext(optionsBuilder.Options, new MediatR.PublisherStub());
+        return new TrackingDbContext(optionsBuilder.Options, new DesignTimePublisherStub());
     }
 }
 
-namespace MediatR
+internal sealed class DesignTimePublisherStub : IPublisher
 {
-    internal sealed class PublisherStub : IPublisher
-    {
-        public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification => Task.CompletedTask;
-    }
+    public Task Publish(object notification, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification => Task.CompletedTask;
 }

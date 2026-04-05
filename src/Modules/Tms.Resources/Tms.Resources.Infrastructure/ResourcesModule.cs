@@ -35,6 +35,9 @@ public static class ResourcesModule
             cfg.RegisterServicesFromAssembly(typeof(ResourcesModule).Assembly);
         });
 
+        // Background worker: Check vehicle/driver expiry alerts daily
+        services.AddHostedService<ExpiryAlertBackgroundWorker>();
+
         return services;
     }
 }

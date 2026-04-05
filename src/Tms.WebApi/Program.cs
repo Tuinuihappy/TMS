@@ -53,6 +53,12 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 // ──── Integration Events (In-Process) ────────────────────────
 builder.Services.AddScoped<IIntegrationEventPublisher, MediatRIntegrationEventPublisher>();
 
+// ──── Audit Log Pipeline (auto-record for IAuditableCommand) ──
+builder.Services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
+
+// ──── SignalR (Real-time Live Tracking Map) ──────────────────
+builder.Services.AddSignalR();
+
 // ──── Auth (optional in dev) ──────────────────────────────────
 var jwtAuthority = builder.Configuration["Jwt:Authority"];
 if (!string.IsNullOrWhiteSpace(jwtAuthority))
@@ -97,6 +103,9 @@ app.MapMasterDataEndpoints();
 app.MapIamEndpoints();
 app.MapTrackingEndpoints();
 app.MapNotificationEndpoints();
+
+// ──── SignalR Hub ─────────────────────────────────────────────
+app.MapHub<Tms.WebApi.Hubs.TrackingHub>("/hubs/tracking");
 
 app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
     .WithTags("Health");
