@@ -44,7 +44,15 @@
     <Project Path="src/Modules/Tms.Documents/Tms.Documents.Infrastructure/Tms.Documents.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Tms.Documents.UnitTests/Tms.Documents.UnitTests.csproj" />
+    <Project Path="tests/Tms.Execution.UnitTests/Tms.Execution.UnitTests.csproj" />
+    <Project Path="tests/Tms.Integration.UnitTests/Tms.Integration.UnitTests.csproj" />
     <Project Path="tests/Tms.Orders.UnitTests/Tms.Orders.UnitTests.csproj" />
+    <Project Path="tests/Tms.Planning.UnitTests/Tms.Planning.UnitTests.csproj" />
+    <Project Path="tests/Tms.Platform.UnitTests/Tms.Platform.UnitTests.csproj" />
+    <Project Path="tests/Tms.Resources.UnitTests/Tms.Resources.UnitTests.csproj" />
+    <Project Path="tests/Tms.SharedKernel.UnitTests/Tms.SharedKernel.UnitTests.csproj" />
+    <Project Path="tests/Tms.Tracking.UnitTests/Tms.Tracking.UnitTests.csproj" />
     <Project Path="tests/Tms.WebApi.IntegrationTests/Tms.WebApi.IntegrationTests.csproj" />
   </Folder>
 </Solution>

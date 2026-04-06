@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Modules/Tms.Orders/Tms.Orders.Application/Tms.Orders.Application.csproj" />
-    <ProjectReference Include="../../src/Modules/Tms.Orders/Tms.Orders.Domain/Tms.Orders.Domain.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Resources/Tms.Resources.Application/Tms.Resources.Application.csproj" />
+    <ProjectReference Include="../../src/Modules/Tms.Resources/Tms.Resources.Domain/Tms.Resources.Domain.csproj" />
     <ProjectReference Include="../../src/Tms.SharedKernel/Tms.SharedKernel.csproj" />
   </ItemGroup>
 </Project>

@@ -52,15 +52,15 @@ public class TmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
 
         var resourcesDb = scope.ServiceProvider.GetRequiredService<Tms.Resources.Infrastructure.Persistence.ResourcesDbContext>();
         var resourcesCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)resourcesDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
-        await resourcesCreator.CreateTablesAsync(); // Force create tables even if DB exists
+        try { await resourcesCreator.CreateTablesAsync(); } catch { } // Ignore if Outbox already exists
 
         var ordersDb = scope.ServiceProvider.GetRequiredService<Tms.Orders.Infrastructure.Persistence.OrdersDbContext>();
         var ordersCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)ordersDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
-        await ordersCreator.CreateTablesAsync(); // Force create tables even if DB exists
+        try { await ordersCreator.CreateTablesAsync(); } catch { }
         
         var execDb = scope.ServiceProvider.GetRequiredService<Tms.Execution.Infrastructure.Persistence.ExecutionDbContext>();
         var execCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)execDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
-        await execCreator.CreateTablesAsync();
+        try { await execCreator.CreateTablesAsync(); } catch { }
 
         await SeedTestDataAsync(platformDb);
     }
