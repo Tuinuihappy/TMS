@@ -5,9 +5,11 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Orders.Infrastructure.Persistence;
 
-public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options, IPublisher publisher) : DbContext(options)
+public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) : DbContext(options)
 {
+    public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<TransportOrder> TransportOrders => Set<TransportOrder>();
+
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -23,13 +25,15 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options, I
                 versionProp.IsConcurrencyToken = false;
         }
 
+        modelBuilder.Entity<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>().ToTable("OutboxMessages", "ord");
         base.OnModelCreating(modelBuilder);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var result = await base.SaveChangesAsync(cancellationToken);
-        await DomainEventDispatcher.DispatchDomainEventsAsync(this, publisher, cancellationToken);
-        return result;
+        DomainEventDispatcher.StoreDomainEventsInOutbox(this);
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }
+
+

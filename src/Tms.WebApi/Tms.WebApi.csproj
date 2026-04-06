@@ -23,5 +23,8 @@
     <ProjectReference Include="../Modules/Tms.Resources/Tms.Resources.Infrastructure/Tms.Resources.Infrastructure.csproj" />
     <ProjectReference Include="../Modules/Tms.Platform/Tms.Platform.Infrastructure/Tms.Platform.Infrastructure.csproj" />
     <ProjectReference Include="../Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj" />
+    <!-- Phase 4 -->
+    <ProjectReference Include="../Modules/Tms.Integration/Tms.Integration.Infrastructure/Tms.Integration.Infrastructure.csproj" />
+    <ProjectReference Include="../Modules/Tms.Documents/Tms.Documents.Infrastructure/Tms.Documents.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

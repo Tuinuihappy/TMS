@@ -46,6 +46,16 @@ COPY src/Modules/Tms.Tracking/Tms.Tracking.Domain/Tms.Tracking.Domain.csproj src
 COPY src/Modules/Tms.Tracking/Tms.Tracking.Application/Tms.Tracking.Application.csproj src/Modules/Tms.Tracking/Tms.Tracking.Application/
 COPY src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/
 
+# Modules — Integration
+COPY src/Modules/Tms.Integration/Tms.Integration.Domain/Tms.Integration.Domain.csproj src/Modules/Tms.Integration/Tms.Integration.Domain/
+COPY src/Modules/Tms.Integration/Tms.Integration.Application/Tms.Integration.Application.csproj src/Modules/Tms.Integration/Tms.Integration.Application/
+COPY src/Modules/Tms.Integration/Tms.Integration.Infrastructure/Tms.Integration.Infrastructure.csproj src/Modules/Tms.Integration/Tms.Integration.Infrastructure/
+
+# Modules — Documents
+COPY src/Modules/Tms.Documents/Tms.Documents.Domain/Tms.Documents.Domain.csproj src/Modules/Tms.Documents/Tms.Documents.Domain/
+COPY src/Modules/Tms.Documents/Tms.Documents.Application/Tms.Documents.Application.csproj src/Modules/Tms.Documents/Tms.Documents.Application/
+COPY src/Modules/Tms.Documents/Tms.Documents.Infrastructure/Tms.Documents.Infrastructure.csproj src/Modules/Tms.Documents/Tms.Documents.Infrastructure/
+
 # Restore dependencies (cached layer)
 RUN dotnet restore src/Tms.WebApi/Tms.WebApi.csproj
 

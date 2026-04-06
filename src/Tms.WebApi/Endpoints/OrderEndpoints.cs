@@ -39,8 +39,19 @@ public static class OrderEndpoints
         .WithSummary("ดู Order ตาม ID");
 
         // POST /api/orders
-        group.MapPost("/", async (CreateOrderCommand command, ISender sender, CancellationToken ct) =>
+        group.MapPost("/", async (CreateOrderRequest request, ISender sender, CancellationToken ct) =>
         {
+            var command = new CreateOrderCommand(
+                request.CustomerId,
+                request.OrderNumber,
+                request.PickupAddress,
+                request.DropoffAddress,
+                request.Items,
+                request.PickupWindow,
+                request.DropoffWindow,
+                request.Priority,
+                request.Notes);
+
             var id = await sender.Send(command, ct);
             return Results.Created($"/api/orders/{id}", new { Id = id });
         })
@@ -98,3 +109,15 @@ public static class OrderEndpoints
 }
 
 public sealed record CancelOrderRequest(string Reason);
+
+public sealed record CreateOrderRequest(
+    Guid CustomerId,
+    string? OrderNumber,
+    Tms.Orders.Application.Features.CreateOrder.AddressDto PickupAddress,
+    Tms.Orders.Application.Features.CreateOrder.AddressDto DropoffAddress,
+    List<Tms.Orders.Application.Features.CreateOrder.OrderItemDto> Items,
+    Tms.Orders.Application.Features.CreateOrder.TimeWindowDto? PickupWindow = null,
+    Tms.Orders.Application.Features.CreateOrder.TimeWindowDto? DropoffWindow = null,
+    string? Priority = "Normal",
+    string? Notes = null
+);

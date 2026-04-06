@@ -20,7 +20,7 @@ public sealed class TrackingDbContextFactory : IDesignTimeDbContextFactory<Track
             config.GetConnectionString("TmsDb") ?? "Host=localhost;Database=tms_db;Username=postgres;Password=postgres",
             npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "trk"));
 
-        return new TrackingDbContext(optionsBuilder.Options, new DesignTimePublisherStub());
+        return new TrackingDbContext(optionsBuilder.Options);
     }
 }
 

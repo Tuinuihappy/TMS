@@ -299,6 +299,34 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.ToTable("VerificationItems", "exe");
                 });
 
+            modelBuilder.Entity("Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OutboxMessages", "exe");
+                });
+
             modelBuilder.Entity("Tms.Execution.Domain.Entities.PODPhoto", b =>
                 {
                     b.HasOne("Tms.Execution.Domain.Entities.PODRecord", null)

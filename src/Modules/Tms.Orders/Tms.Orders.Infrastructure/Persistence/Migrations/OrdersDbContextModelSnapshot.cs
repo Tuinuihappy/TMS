@@ -120,6 +120,34 @@ namespace Tms.Orders.Infrastructure.Persistence.Migrations
                     b.ToTable("TransportOrders", "ord");
                 });
 
+            modelBuilder.Entity("Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OutboxMessages", "ord");
+                });
+
             modelBuilder.Entity("Tms.Orders.Domain.Entities.OrderItem", b =>
                 {
                     b.HasOne("Tms.Orders.Domain.Entities.TransportOrder", null)

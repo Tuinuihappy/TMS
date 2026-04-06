@@ -6,11 +6,9 @@ namespace Tms.SharedKernel.Application;
 
 /// <summary>
 /// Dispatches domain events after SaveChanges.
-/// Call DispatchDomainEventsAsync in your DbContext.SaveChangesAsync override.
-/// </summary>
 public static class DomainEventDispatcher
 {
-    public static async Task DispatchDomainEventsAsync(DbContext context, IPublisher publisher, CancellationToken ct = default)
+    public static void StoreDomainEventsInOutbox(DbContext context)
     {
         var entities = context.ChangeTracker
             .Entries<BaseEntity>()
@@ -22,11 +20,17 @@ public static class DomainEventDispatcher
             .SelectMany(e => e.DomainEvents)
             .ToList();
 
-        // Clear before dispatching (avoid re-entry)
+        // Clear before dispatching
         foreach (var entity in entities)
             entity.ClearDomainEvents();
 
-        foreach (var domainEvent in domainEvents)
-            await publisher.Publish(domainEvent, ct);
+        if (domainEvents.Count == 0) return;
+
+        var outboxMessages = domainEvents.Select(domainEvent => new Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage
+        {
+            Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
+            Content = System.Text.Json.JsonSerializer.Serialize(domainEvent, domainEvent.GetType())
+        }).ToList();
+
     }
 }

@@ -1,7 +1,9 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Tms.Documents.Infrastructure;
 using Tms.Execution.Infrastructure;
+using Tms.Integration.Infrastructure;
 using Tms.Orders.Infrastructure;
 using Tms.Platform.Infrastructure;
 using Tms.Planning.Infrastructure;
@@ -28,7 +30,9 @@ builder.Services
     .AddExecutionModule(builder.Configuration)
     .AddResourcesModule(builder.Configuration)
     .AddPlatformModule(builder.Configuration)
-    .AddTrackingModule(builder.Configuration);
+    .AddTrackingModule(builder.Configuration)
+    .AddIntegrationModule(builder.Configuration)
+    .AddDocumentsModule(builder.Configuration);
 
 // ──── API ─────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -55,6 +59,9 @@ builder.Services.AddScoped<IIntegrationEventPublisher, MediatRIntegrationEventPu
 
 // ──── Audit Log Pipeline (auto-record for IAuditableCommand) ──
 builder.Services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
+
+// ──── Background Jobs ──────────────────────────────────────────
+builder.Services.AddHostedService<Tms.WebApi.Infrastructure.BackgroundJobs.OutboxProcessorJob>();
 
 // ──── SignalR (Real-time Live Tracking Map) ──────────────────
 builder.Services.AddSignalR();
@@ -103,6 +110,11 @@ app.MapMasterDataEndpoints();
 app.MapIamEndpoints();
 app.MapTrackingEndpoints();
 app.MapNotificationEndpoints();
+// Phase 4
+app.MapOmsEndpoints();
+app.MapAmrEndpoints();
+app.MapErpEndpoints();
+app.MapDocumentEndpoints();
 
 // ──── SignalR Hub ─────────────────────────────────────────────
 app.MapHub<Tms.WebApi.Hubs.TrackingHub>("/hubs/tracking");
@@ -111,7 +123,7 @@ app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = Dat
     .WithTags("Health");
 
 // ──── Auto-Migrate All Modules (dev only) ────────────────────
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || args.Contains("--migrate"))
 {
     using var scope = app.Services.CreateScope();
     var sp = scope.ServiceProvider;
@@ -124,6 +136,8 @@ if (app.Environment.IsDevelopment())
         await sp.GetRequiredService<Tms.Planning.Infrastructure.Persistence.PlanningDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Execution.Infrastructure.Persistence.ExecutionDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Tracking.Infrastructure.Persistence.TrackingDbContext>().Database.MigrateAsync();
+        await sp.GetRequiredService<Tms.Integration.Infrastructure.Persistence.IntegrationDbContext>().Database.MigrateAsync();
+        await sp.GetRequiredService<Tms.Documents.Infrastructure.Persistence.DocumentsDbContext>().Database.MigrateAsync();
         Log.Information("All database migrations applied successfully.");
     }
     catch (Exception ex)

@@ -33,6 +33,16 @@
     <Project Path="src/Modules/Tms.Tracking/Tms.Tracking.Application/Tms.Tracking.Application.csproj" />
     <Project Path="src/Modules/Tms.Tracking/Tms.Tracking.Infrastructure/Tms.Tracking.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Integration/">
+    <Project Path="src/Modules/Tms.Integration/Tms.Integration.Domain/Tms.Integration.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Integration/Tms.Integration.Application/Tms.Integration.Application.csproj" />
+    <Project Path="src/Modules/Tms.Integration/Tms.Integration.Infrastructure/Tms.Integration.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Documents/">
+    <Project Path="src/Modules/Tms.Documents/Tms.Documents.Domain/Tms.Documents.Domain.csproj" />
+    <Project Path="src/Modules/Tms.Documents/Tms.Documents.Application/Tms.Documents.Application.csproj" />
+    <Project Path="src/Modules/Tms.Documents/Tms.Documents.Infrastructure/Tms.Documents.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tms.Orders.UnitTests/Tms.Orders.UnitTests.csproj" />
     <Project Path="tests/Tms.WebApi.IntegrationTests/Tms.WebApi.IntegrationTests.csproj" />

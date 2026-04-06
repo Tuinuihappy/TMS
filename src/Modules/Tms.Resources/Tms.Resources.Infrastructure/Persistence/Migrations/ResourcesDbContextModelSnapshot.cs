@@ -288,6 +288,34 @@ namespace Tms.Resources.Infrastructure.Persistence.Migrations
                     b.ToTable("VehicleTypes", "res");
                 });
 
+            modelBuilder.Entity("Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OutboxMessages", "res");
+                });
+
             modelBuilder.Entity("Tms.Resources.Domain.Entities.Driver", b =>
                 {
                     b.OwnsOne("Tms.Resources.Domain.Entities.LicenseInfo", "License", b1 =>

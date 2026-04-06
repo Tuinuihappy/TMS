@@ -5,12 +5,16 @@ using Tms.Tracking.Domain.Entities;
 
 namespace Tms.Tracking.Infrastructure.Persistence;
 
-public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> options, IPublisher publisher)
+public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> options)
     : DbContext(options)
 {
+    public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<VehiclePosition> VehiclePositions => Set<VehiclePosition>();
+
     public DbSet<CurrentVehicleState> CurrentVehicleStates => Set<CurrentVehicleState>();
+
     public DbSet<GeoZone> GeoZones => Set<GeoZone>();
+
     public DbSet<ZoneEvent> ZoneEvents => Set<ZoneEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,13 +30,15 @@ public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> option
                 versionProp.IsConcurrencyToken = false;
         }
 
+        modelBuilder.Entity<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>().ToTable("OutboxMessages", "trk");
         base.OnModelCreating(modelBuilder);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var result = await base.SaveChangesAsync(cancellationToken);
-        await DomainEventDispatcher.DispatchDomainEventsAsync(this, publisher, cancellationToken);
-        return result;
+        DomainEventDispatcher.StoreDomainEventsInOutbox(this);
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }
+
+

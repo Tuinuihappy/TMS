@@ -13,6 +13,7 @@ public sealed class ResourcesDbContextFactory : IDesignTimeDbContextFactory<Reso
         var conn = Environment.GetEnvironmentVariable("ConnectionStrings__TmsDb") ?? DefaultConn;
         var optionsBuilder = new DbContextOptionsBuilder<ResourcesDbContext>();
         optionsBuilder.UseNpgsql(conn, x => x.MigrationsHistoryTable("__EFMigrationsHistory", "res"));
-        return new ResourcesDbContext(optionsBuilder.Options, Tms.SharedKernel.Application.NullPublisher.Instance);
+        return new ResourcesDbContext(optionsBuilder.Options);
     }
 }
+

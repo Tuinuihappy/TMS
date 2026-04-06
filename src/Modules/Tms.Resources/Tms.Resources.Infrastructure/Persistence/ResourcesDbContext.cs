@@ -5,13 +5,19 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Resources.Infrastructure.Persistence;
 
-public sealed class ResourcesDbContext(DbContextOptions<ResourcesDbContext> options, IPublisher publisher) : DbContext(options)
+public sealed class ResourcesDbContext(DbContextOptions<ResourcesDbContext> options) : DbContext(options)
 {
+    public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<VehicleType> VehicleTypes => Set<VehicleType>();
+
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+
     public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
+
     public DbSet<InsuranceRecord> InsuranceRecords => Set<InsuranceRecord>();
+
     public DbSet<Driver> Drivers => Set<Driver>();
+
     public DbSet<HOSRecord> HOSRecords => Set<HOSRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -27,13 +33,15 @@ public sealed class ResourcesDbContext(DbContextOptions<ResourcesDbContext> opti
                 versionProp.IsConcurrencyToken = false;
         }
 
+        modelBuilder.Entity<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>().ToTable("OutboxMessages", "res");
         base.OnModelCreating(modelBuilder);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var result = await base.SaveChangesAsync(cancellationToken);
-        await DomainEventDispatcher.DispatchDomainEventsAsync(this, publisher, cancellationToken);
-        return result;
+        DomainEventDispatcher.StoreDomainEventsInOutbox(this);
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }
+
+

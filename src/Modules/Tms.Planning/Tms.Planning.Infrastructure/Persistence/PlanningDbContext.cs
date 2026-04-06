@@ -5,12 +5,17 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Planning.Infrastructure.Persistence;
 
-public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> options, IPublisher publisher) : DbContext(options)
+public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> options) : DbContext(options)
 {
+    public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<Trip> Trips => Set<Trip>();
+
     public DbSet<Stop> Stops => Set<Stop>();
+
     public DbSet<RoutePlan> RoutePlans => Set<RoutePlan>();
+
     public DbSet<RouteStop> RouteStops => Set<RouteStop>();
+
     public DbSet<OptimizationRequest> OptimizationRequests => Set<OptimizationRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,13 +31,15 @@ public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> option
                 versionProp.IsConcurrencyToken = false;
         }
 
+        modelBuilder.Entity<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>().ToTable("OutboxMessages", "pln");
         base.OnModelCreating(modelBuilder);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var result = await base.SaveChangesAsync(cancellationToken);
-        await DomainEventDispatcher.DispatchDomainEventsAsync(this, publisher, cancellationToken);
-        return result;
+        DomainEventDispatcher.StoreDomainEventsInOutbox(this);
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }
+
+
