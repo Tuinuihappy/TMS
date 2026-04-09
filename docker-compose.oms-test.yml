@@ -1,0 +1,107 @@
+# docker-compose.oms-test.yml
+# สำหรับทดสอบ OMS Integration แบบสมบูรณ์
+# Usage: docker compose -f docker-compose.oms-test.yml up --build -d
+#
+# Services:
+#  - tms_api      : TMS WebAPI (port 5080)
+#  - postgres     : PostgreSQL (port 5434)
+#  - redis        : Redis (port 6379)
+#  - rabbitmq     : RabbitMQ (port 5672, UI: 15672)
+#  - oms_mock     : Mock OMS Callback Receiver (port 9999) — รับ callback จาก TMS
+
+services:
+  # ── TMS WebAPI ────────────────────────────────────────────
+  tms_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tms_api
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__TmsDb: "Host=postgres;Port=5432;Database=tms_dev;Username=tms_admin;Password=tms_dev_password"
+      Integration__OmsCallbackUrl: "http://oms_mock:9999"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tms_net
+
+  # ── Mock OMS Callback Server ──────────────────────────────
+  # รับ POST /oms/callback/status จาก TMS แล้ว log ออกมา
+  oms_mock:
+    image: mendhak/http-https-echo:latest
+    container_name: oms_mock
+    ports:
+      - "9999:8080"
+    environment:
+      HTTP_PORT: "8080"
+    networks:
+      - tms_net
+
+  # ── PostgreSQL ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tms_postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: tms_dev
+      POSTGRES_USER: tms_admin
+      POSTGRES_PASSWORD: tms_dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/seed_oms.sql:/docker-entrypoint-initdb.d/99_seed_oms.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tms_admin -d tms_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tms_net
+
+  # ── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: tms_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tms_net
+
+  # ── RabbitMQ ──────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: tms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: tms
+      RABBITMQ_DEFAULT_PASS: tms_dev
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tms_net
+
+volumes:
+  postgres_data:
+
+networks:
+  tms_net:
+    driver: bridge
