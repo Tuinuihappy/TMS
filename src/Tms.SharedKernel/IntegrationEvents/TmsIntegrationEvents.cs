@@ -47,7 +47,15 @@ public sealed record DriverStatusChangedIntegrationEvent(
 public sealed record OrderConfirmedIntegrationEvent(
     Guid OrderId,
     string OrderNumber,
-    Guid CustomerId) : IntegrationEvent;
+    Guid CustomerId,
+    double PickupLatitude,
+    double PickupLongitude,
+    double DropoffLatitude,
+    double DropoffLongitude,
+    decimal TotalWeight,
+    decimal TotalVolume,
+    DateTime? ReadyTime,
+    DateTime? DueTime) : IntegrationEvent;
 
 public sealed record OrderCancelledIntegrationEvent(
     Guid OrderId,

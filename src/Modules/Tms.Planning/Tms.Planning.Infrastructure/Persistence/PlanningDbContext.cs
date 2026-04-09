@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Tms.Planning.Domain.Entities;
 using Tms.SharedKernel.Application;
 
+using Tms.Planning.Application.Common.Interfaces;
+
 namespace Tms.Planning.Infrastructure.Persistence;
 
-public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> options) : DbContext(options)
+public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> options) : DbContext(options), IPlanningDbContext
 {
     public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<Trip> Trips => Set<Trip>();
@@ -17,6 +19,8 @@ public sealed class PlanningDbContext(DbContextOptions<PlanningDbContext> option
     public DbSet<RouteStop> RouteStops => Set<RouteStop>();
 
     public DbSet<OptimizationRequest> OptimizationRequests => Set<OptimizationRequest>();
+    
+    public DbSet<PlanningOrder> PlanningOrders => Set<PlanningOrder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

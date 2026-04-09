@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tms.Planning.Application;
+using Tms.Planning.Application.Common.Interfaces;
 using Tms.Planning.Application.Features;
 using Tms.Planning.Domain.Interfaces;
+using Tms.Planning.Infrastructure.BackgroundJobs;
 using Tms.Planning.Infrastructure.Persistence;
 using Tms.Planning.Infrastructure.Persistence.Repositories;
 using Tms.SharedKernel.Application;
@@ -29,6 +31,11 @@ public static class PlanningModule
         services.AddScoped<IOptimizationRequestRepository, OptimizationRequestRepository>();
         services.AddScoped<GreedyRouteOptimizer>();
         services.AddScoped<PdpRouteOptimizer>();
+        services.AddSingleton<OrToolsVrpSolver>();
+
+        // Auto Planning Pipeline
+        services.AddScoped<IPlanningDbContext>(sp => sp.GetRequiredService<PlanningDbContext>());
+        services.AddHostedService<AutoPlanningBatchJob>();
 
         // IOutboxWriter — backed by PlanningDbContext (transactional outbox per module)
         services.AddScoped<IOutboxWriter>(sp =>
