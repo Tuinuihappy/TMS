@@ -7,6 +7,12 @@ namespace Tms.Integration.Domain.Interfaces;
 public interface IOmsSyncRepository
 {
     Task<OmsOrderSync?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<List<OmsOrderSync>> SearchAsync(
+        Guid? id = null,
+        string? externalOrderRef = null,
+        SyncStatus? status = null,
+        int batchSize = 50,
+        CancellationToken ct = default);
     Task<List<OmsOrderSync>> GetPendingAsync(int batchSize, CancellationToken ct = default);
     Task<List<OmsOrderSync>> GetFailedForRetryAsync(CancellationToken ct = default);
     Task<bool> ExistsAsync(string externalOrderRef, string omsProviderCode, CancellationToken ct = default);

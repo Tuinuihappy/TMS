@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Tms.Integration.Infrastructure.Persistence;
 using Tms.Platform.Infrastructure.Persistence;
 using Tms.Platform.Domain.Entities;
 using Xunit;
@@ -61,6 +62,10 @@ public class TmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         var execDb = scope.ServiceProvider.GetRequiredService<Tms.Execution.Infrastructure.Persistence.ExecutionDbContext>();
         var execCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)execDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
         try { await execCreator.CreateTablesAsync(); } catch { }
+
+        var integrationDb = scope.ServiceProvider.GetRequiredService<IntegrationDbContext>();
+        var integrationCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)integrationDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
+        try { await integrationCreator.CreateTablesAsync(); } catch { }
 
         await SeedTestDataAsync(platformDb);
     }

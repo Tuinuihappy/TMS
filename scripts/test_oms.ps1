@@ -192,6 +192,8 @@ if ($syncId -and $syncId -ne "00000000-0000-0000-0000-000000000000") {
         $statusCode = $_.Exception.Response.StatusCode.value__
         if ($statusCode -eq 404) {
             Write-Info "404 - Sync not found (expected if already succeeded)"
+        } elseif ($statusCode -eq 409) {
+            Write-Info "409 - Sync is not in DeadLetter state yet (expected for succeeded sync)"
         } else {
             Write-Info "Retry response: $($_.Exception.Message)"
         }

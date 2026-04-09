@@ -36,8 +36,8 @@ public sealed class ReceiveOmsWebhookHandler(IOmsSyncRepository repo)
 
     private static string? TryExtractExternalRef(string json)
     {
-        // ลอง parse ค่า field ที่น่าจะเป็น order ref (order_id, orderId, order_ref, etc.)
-        var candidates = new[] { "order_id", "orderId", "order_ref", "orderRef", "id" };
+        // Prefer the current mapped field names, then fall back to legacy aliases.
+        var candidates = new[] { "externalRef", "external_ref", "order_id", "orderId", "order_ref", "orderRef", "id" };
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(json);

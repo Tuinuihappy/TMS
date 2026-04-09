@@ -12,6 +12,30 @@ public sealed class OmsSyncRepository(IntegrationDbContext db) : IOmsSyncReposit
     public Task<OmsOrderSync?> GetByIdAsync(Guid id, CancellationToken ct) =>
         db.OmsOrderSyncs.FirstOrDefaultAsync(x => x.Id == id, ct);
 
+    public Task<List<OmsOrderSync>> SearchAsync(
+        Guid? id = null,
+        string? externalOrderRef = null,
+        SyncStatus? status = null,
+        int batchSize = 50,
+        CancellationToken ct = default)
+    {
+        var query = db.OmsOrderSyncs.AsQueryable();
+
+        if (id.HasValue)
+            query = query.Where(x => x.Id == id.Value);
+
+        if (!string.IsNullOrWhiteSpace(externalOrderRef))
+            query = query.Where(x => x.ExternalOrderRef == externalOrderRef);
+
+        if (status.HasValue)
+            query = query.Where(x => x.Status == status.Value);
+
+        return query
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(batchSize)
+            .ToListAsync(ct);
+    }
+
     public Task<List<OmsOrderSync>> GetPendingAsync(int batchSize, CancellationToken ct) =>
         db.OmsOrderSyncs
             .Where(x => x.Status == SyncStatus.Pending)
