@@ -1,11 +1,13 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tms.SharedKernel.Domain;
+using Tms.SharedKernel.Infrastructure.Outbox;
 
 namespace Tms.SharedKernel.Application;
 
 /// <summary>
-/// Dispatches domain events after SaveChanges.
+/// Converts domain events from aggregates into OutboxMessage rows within the SAME transaction.
+/// Called by each module's DbContext.SaveChangesAsync override.
+/// </summary>
 public static class DomainEventDispatcher
 {
     public static void StoreDomainEventsInOutbox(DbContext context)
@@ -20,17 +22,23 @@ public static class DomainEventDispatcher
             .SelectMany(e => e.DomainEvents)
             .ToList();
 
-        // Clear before dispatching
+        // Clear domain events before persisting to avoid re-entrancy
         foreach (var entity in entities)
             entity.ClearDomainEvents();
 
         if (domainEvents.Count == 0) return;
 
-        var outboxMessages = domainEvents.Select(domainEvent => new Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage
+        // Add OutboxMessage rows to the SAME DbContext — saved atomically with the aggregate
+        foreach (var domainEvent in domainEvents)
         {
-            Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
-            Content = System.Text.Json.JsonSerializer.Serialize(domainEvent, domainEvent.GetType())
-        }).ToList();
-
+            var message = new OutboxMessage
+            {
+                Type = domainEvent.GetType().AssemblyQualifiedName
+                       ?? domainEvent.GetType().Name,
+                Content = System.Text.Json.JsonSerializer.Serialize(domainEvent, domainEvent.GetType())
+            };
+            context.Set<OutboxMessage>().Add(message);
+        }
     }
 }
+

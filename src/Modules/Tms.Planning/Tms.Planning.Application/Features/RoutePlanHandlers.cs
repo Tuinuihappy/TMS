@@ -11,6 +11,7 @@ namespace Tms.Planning.Application.Features;
 
 public sealed record RouteStopDto(
     Guid Id, int Sequence, Guid OrderId,
+    string StopType,
     double Lat, double Lng,
     DateTime? EstimatedArrivalTime, DateTime? EstimatedDepartureTime);
 
@@ -24,22 +25,48 @@ public sealed record RoutePlanDto(
 public sealed record OptimizationRequestDto(
     Guid Id, string Status, DateTime RequestedAt, DateTime? CompletedAt, string? Error);
 
+/// <summary>Legacy: delivery-only input (ใช้กับ GreedyRouteOptimizer)</summary>
 public sealed record OrderLocationInput(Guid OrderId, double Lat, double Lng, decimal WeightKg = 0);
+
+/// <summary>
+/// PDP input — 1 Order มีทั้ง Pickup location + Dropoff location
+/// รวม volume constraint + time window
+/// </summary>
+public sealed record PdpOrderInput(
+    Guid OrderId,
+    double PickupLat,
+    double PickupLng,
+    double DropoffLat,
+    double DropoffLng,
+    decimal WeightKg = 0,
+    decimal VolumeCBM = 0,
+    DateTime? PickupWindowFrom = null,
+    DateTime? PickupWindowTo = null,
+    DateTime? DropoffWindowFrom = null,
+    DateTime? DropoffWindowTo = null);
 
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 // POST /api/planning/optimize
+/// <summary>
+/// สร้าง RoutePlan ด้วย PDP Optimizer — Nearest Neighbor with Precedence Constraints
+/// </summary>
 public sealed record RequestOptimizationCommand(
-    List<OrderLocationInput> Orders,
+    List<PdpOrderInput> Orders,
     Guid? VehicleTypeId,
     DateOnly PlannedDate,
     Guid TenantId,
-    int MaxStopsPerRoute = 20) : ICommand<Guid>;
+    int MaxOrdersPerRoute = 10,
+    decimal MaxCapacityKg = 10_000m,
+    decimal MaxCapacityVolumeCBM = 0m,
+    double DepotLat = 0,
+    double DepotLng = 0,
+    DateTime? DepartureTime = null) : ICommand<Guid>;
 
 public sealed class RequestOptimizationHandler(
     IOptimizationRequestRepository optRepo,
     IRoutePlanRepository planRepo,
-    GreedyRouteOptimizer optimizer)
+    PdpRouteOptimizer optimizer)
     : ICommandHandler<RequestOptimizationCommand, Guid>
 {
     public async Task<Guid> Handle(RequestOptimizationCommand req, CancellationToken ct)
@@ -48,13 +75,22 @@ public sealed class RequestOptimizationHandler(
         var optRequest = OptimizationRequest.Create(req.TenantId, paramsJson);
         await optRepo.AddAsync(optRequest, ct);
 
-        // Run greedy optimization synchronously (fast enough for small batches < 100 orders)
         optRequest.MarkProcessing();
         await optRepo.UpdateAsync(optRequest, ct);
 
+        var orderMap = req.Orders.ToDictionary(o => o.OrderId);
+
         try
         {
-            var routes = optimizer.Optimize(req.Orders, req.MaxStopsPerRoute);
+            var routes = optimizer.Optimize(
+                req.Orders,
+                req.MaxOrdersPerRoute,
+                req.MaxCapacityKg,
+                req.MaxCapacityVolumeCBM,
+                req.DepotLat,
+                req.DepotLng,
+                req.DepartureTime);
+
             var plans = new List<RoutePlan>();
 
             for (int i = 0; i < routes.Count; i++)
@@ -63,18 +99,31 @@ public sealed class RequestOptimizationHandler(
                 var planNumber = await planRepo.GeneratePlanNumberAsync(ct);
                 var plan = RoutePlan.Create(planNumber, req.PlannedDate, req.TenantId, req.VehicleTypeId);
 
+                // Build stops with StopType
                 for (int seq = 0; seq < route.Count; seq++)
                 {
-                    var o = route[seq];
-                    var stop = RouteStop.Create(plan.Id, seq + 1, o.OrderId, o.Lat, o.Lng);
+                    var pdpStop = route[seq];
+                    var stop = RouteStop.Create(
+                        plan.Id, seq + 1, pdpStop.OrderId,
+                        pdpStop.StopType,
+                        pdpStop.Lat, pdpStop.Lng);
                     plan.AddStop(stop);
                 }
 
+                // Compute route metrics
+                var distKm = PdpRouteOptimizer.ComputeTotalDistanceKm(
+                    route, req.DepotLat, req.DepotLng);
+                var durationMin = PdpRouteOptimizer.EstimateDurationMin(distKm);
+                var capUtil = PdpRouteOptimizer.ComputeCapacityUtil(
+                    route, orderMap, req.MaxCapacityKg);
+
+                plan.UpdateMetrics(distKm, durationMin, capUtil);
                 plans.Add(plan);
             }
 
             await planRepo.AddRangeAsync(plans, ct);
-            optRequest.Complete(JsonSerializer.Serialize(new { PlanCount = plans.Count }), plans);
+            optRequest.Complete(
+                JsonSerializer.Serialize(new { PlanCount = plans.Count }), plans);
         }
         catch (Exception ex)
         {
@@ -117,7 +166,9 @@ public sealed class GetRoutePlansHandler(IRoutePlanRepository repo)
         p.Id, p.PlanNumber, p.Status.ToString(), p.VehicleTypeId, p.PlannedDate,
         p.TotalDistanceKm, p.EstimatedTotalDurationMin, p.CapacityUtilizationPercent, p.CreatedAt,
         p.Stops.OrderBy(s => s.Sequence)
-            .Select(s => new RouteStopDto(s.Id, s.Sequence, s.OrderId, s.Latitude, s.Longitude,
+            .Select(s => new RouteStopDto(
+                s.Id, s.Sequence, s.OrderId, s.StopType,
+                s.Latitude, s.Longitude,
                 s.EstimatedArrivalTime, s.EstimatedDepartureTime)).ToList());
 }
 
@@ -167,7 +218,7 @@ public sealed record LockRoutePlanCommand(Guid PlanId) : ICommand;
 
 public sealed class LockRoutePlanHandler(
     IRoutePlanRepository repo,
-    IIntegrationEventPublisher eventPublisher)
+    IOutboxWriter outbox)
     : ICommandHandler<LockRoutePlanCommand>
 {
     public async Task Handle(LockRoutePlanCommand req, CancellationToken ct)
@@ -176,14 +227,20 @@ public sealed class LockRoutePlanHandler(
             ?? throw new NotFoundException(nameof(RoutePlan), req.PlanId);
 
         plan.Lock();
+
+        var stops = plan.Stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new RoutePlanStopSnapshot(
+                s.Sequence, s.OrderId,
+                s.StopType,
+                s.Latitude, s.Longitude,
+                s.EstimatedArrivalTime))
+            .ToList();
+
+        // Stage event BEFORE SaveChanges — written atomically with the Plan update
+        outbox.Stage(new RoutePlanLockedIntegrationEvent(
+            plan.Id, plan.VehicleTypeId, plan.PlannedDate, plan.TenantId, stops));
+
         await repo.UpdateAsync(plan, ct);
-
-        // Publish → Dispatch module will auto-create Trip + Stops
-        var stops = plan.Stops.Select(s => new RoutePlanStopSnapshot(
-            s.Sequence, s.OrderId, s.Latitude, s.Longitude, s.EstimatedArrivalTime)).ToList();
-
-        await eventPublisher.PublishAsync(
-            new RoutePlanLockedIntegrationEvent(
-                plan.Id, plan.VehicleTypeId, plan.PlannedDate, plan.TenantId, stops), ct);
     }
 }

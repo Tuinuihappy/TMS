@@ -7,6 +7,7 @@ using Tms.Execution.Application.Features.UpdateShipmentStatus;
 using Tms.Execution.Domain.Interfaces;
 using Tms.Execution.Infrastructure.Persistence;
 using Tms.Execution.Infrastructure.Persistence.Repositories;
+using Tms.SharedKernel.Application;
 
 namespace Tms.Execution.Infrastructure;
 
@@ -27,6 +28,10 @@ public static class ExecutionModule
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
         services.AddScoped<IPODDocumentRepository, PODDocumentRepository>();
         services.AddScoped<IBlobStorageService, LocalBlobStorageService>();
+
+        // IOutboxWriter — backed by ExecutionDbContext (transactional outbox per module)
+        services.AddScoped<IOutboxWriter>(sp =>
+            new OutboxWriter<ExecutionDbContext>(sp.GetRequiredService<ExecutionDbContext>()));
 
         // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>

@@ -24,6 +24,26 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
             .HasConversion<string>()
             .HasMaxLength(20);
 
+        // ── Split Order fields ─────────────────────────────────────────────
+        builder.Property(x => x.ParentOrderId)
+            .IsRequired(false);
+
+        builder.Property(x => x.SplitReason)
+            .HasMaxLength(200)
+            .IsRequired(false);
+
+        builder.Ignore(x => x.IsSplitChild); // computed property
+
+        // Self-referencing FK: child.ParentOrderId -> parent.Id
+        builder.HasOne<TransportOrder>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentOrderId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.ParentOrderId); // query children efficiently
+        // ───────────────────────────────────────────────────────────────
+
         builder.OwnsOne(x => x.PickupAddress, a =>
         {
             a.Property(p => p.Street).HasColumnName("PickupStreet").HasMaxLength(200);
@@ -69,6 +89,7 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
             .AutoInclude();
     }
 }
+
 
 public sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 {

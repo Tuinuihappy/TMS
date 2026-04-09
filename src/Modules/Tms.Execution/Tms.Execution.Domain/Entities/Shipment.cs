@@ -10,7 +10,8 @@ public sealed class Shipment : AggregateRoot
     public string ShipmentNumber { get; private set; } = string.Empty;
     public Guid TripId { get; private set; }
     public Guid OrderId { get; private set; }
-    public Guid StopId { get; private set; }
+    /// <summary>FK ไปยัง Stop (Dropoff) — 1 Shipment ต่อ Order ต่อ Trip</summary>
+    public Guid DropoffStopId { get; private set; }
     public Guid TenantId { get; private set; }
     public ShipmentStatus Status { get; private set; }
 
@@ -20,8 +21,10 @@ public sealed class Shipment : AggregateRoot
     public string? AddressProvince { get; private set; }
     public double? AddressLatitude { get; private set; }
     public double? AddressLongitude { get; private set; }
-    /// <summary>FK ไปยัง Master Data Location — ใช้โดย Geofence auto-arrive</summary>
+    /// <summary>FK to Master Data Location — used by Geofence auto-arrive at DROPOFF</summary>
     public Guid? DestinationLocationId { get; private set; }
+    /// <summary>FK to Master Data Location — used by Geofence auto-arrive at PICKUP</summary>
+    public Guid? PickupLocationId { get; private set; }
 
     // Exception
     public string? ExceptionReason { get; private set; }
@@ -44,14 +47,15 @@ public sealed class Shipment : AggregateRoot
         string shipmentNumber,
         Guid tripId,
         Guid orderId,
-        Guid stopId,
+        Guid dropoffStopId,
         Guid tenantId,
         string? addressName = null,
         string? addressStreet = null,
         string? addressProvince = null,
         double? lat = null,
         double? lng = null,
-        Guid? destinationLocationId = null)
+        Guid? destinationLocationId = null,
+        Guid? pickupLocationId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(shipmentNumber);
 
@@ -60,7 +64,7 @@ public sealed class Shipment : AggregateRoot
             ShipmentNumber = shipmentNumber,
             TripId = tripId,
             OrderId = orderId,
-            StopId = stopId,
+            DropoffStopId = dropoffStopId,
             TenantId = tenantId,
             Status = ShipmentStatus.Pending,
             AddressName = addressName,
@@ -69,9 +73,11 @@ public sealed class Shipment : AggregateRoot
             AddressLatitude = lat,
             AddressLongitude = lng,
             DestinationLocationId = destinationLocationId,
-            CreatedAt = DateTime.UtcNow
+            PickupLocationId      = pickupLocationId,
+            CreatedAt             = DateTime.UtcNow
         };
     }
+
 
     public void AddItem(ShipmentItem item)
     {

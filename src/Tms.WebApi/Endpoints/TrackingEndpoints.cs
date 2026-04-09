@@ -77,7 +77,7 @@ public static class TrackingEndpoints
             CreateGeoZoneRequest req, ISender sender, CancellationToken ct) =>
         {
             var id = await sender.Send(new CreateGeoZoneCommand(
-                req.Name, req.TenantId, req.Type, req.LocationId,
+                req.Name, req.TenantId, req.Type, req.LocationId, req.StopType,
                 req.CenterLat, req.CenterLng, req.RadiusMeters, req.PolygonCoordinatesJson), ct);
             return Results.Created($"/api/tracking/zones/{id}", new { Id = id });
         })
@@ -123,6 +123,7 @@ public sealed record IngestPositionRequest(
 public sealed record CreateGeoZoneRequest(
     string Name, Guid TenantId, string Type,
     Guid? LocationId,
+    string? StopType,           // "Pickup" | "Dropoff" | null
     double? CenterLat, double? CenterLng, double? RadiusMeters,
     string? PolygonCoordinatesJson);
 

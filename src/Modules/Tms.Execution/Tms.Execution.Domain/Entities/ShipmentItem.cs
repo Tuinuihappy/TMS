@@ -12,24 +12,32 @@ public sealed class ShipmentItem : BaseEntity
     public int DeliveredQty { get; private set; }
     public int ReturnedQty { get; private set; }
     public ShipmentItemStatus Status { get; private set; }
+    public string? Barcode { get; private set; }
+    public string? SerialNumber { get; private set; }
+    public string? LotNumber { get; private set; }
 
     private ShipmentItem() { } // EF Core
 
     public static ShipmentItem Create(
-        Guid shipmentId, string description, int expectedQty, string? sku = null)
+        Guid shipmentId, string description, int expectedQty,
+        string? sku = null, string? barcode = null,
+        string? serialNumber = null, string? lotNumber = null)
     {
         if (expectedQty <= 0)
             throw new ArgumentException("Expected quantity must be greater than 0.");
 
         return new ShipmentItem
         {
-            ShipmentId = shipmentId,
-            SKU = sku,
-            Description = description,
-            ExpectedQty = expectedQty,
-            DeliveredQty = 0,
-            ReturnedQty = 0,
-            Status = ShipmentItemStatus.Pending
+            ShipmentId    = shipmentId,
+            SKU           = sku,
+            Description   = description,
+            ExpectedQty   = expectedQty,
+            Barcode       = barcode,
+            SerialNumber  = serialNumber,
+            LotNumber     = lotNumber,
+            DeliveredQty  = 0,
+            ReturnedQty   = 0,
+            Status        = ShipmentItemStatus.Pending
         };
     }
 

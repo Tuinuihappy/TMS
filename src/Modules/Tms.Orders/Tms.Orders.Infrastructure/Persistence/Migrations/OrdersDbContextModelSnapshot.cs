@@ -96,10 +96,17 @@ namespace Tms.Orders.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid?>("ParentOrderId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SplitReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -117,6 +124,8 @@ namespace Tms.Orders.Infrastructure.Persistence.Migrations
                     b.HasIndex("OrderNumber")
                         .IsUnique();
 
+                    b.HasIndex("ParentOrderId");
+
                     b.ToTable("TransportOrders", "ord");
                 });
 
@@ -133,11 +142,20 @@ namespace Tms.Orders.Infrastructure.Persistence.Migrations
                     b.Property<string>("Error")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeadLetter")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("OccurredOn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -159,6 +177,11 @@ namespace Tms.Orders.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Tms.Orders.Domain.Entities.TransportOrder", b =>
                 {
+                    b.HasOne("Tms.Orders.Domain.Entities.TransportOrder", null)
+                        .WithMany()
+                        .HasForeignKey("ParentOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("Tms.Orders.Domain.ValueObjects.Address", "DropoffAddress", b1 =>
                         {
                             b1.Property<Guid>("TransportOrderId")

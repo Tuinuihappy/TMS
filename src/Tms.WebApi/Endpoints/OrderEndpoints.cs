@@ -4,6 +4,7 @@ using Tms.Orders.Application.Features.CancelOrder;
 using Tms.Orders.Application.Features.ConfirmOrder;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Application.Features.GetOrders;
+using Tms.Orders.Application.Features.SplitOrder;
 
 namespace Tms.WebApi.Endpoints;
 
@@ -79,10 +80,7 @@ public static class OrderEndpoints
 
         // PUT /api/orders/{id}/cancel
         group.MapPut("/{id:guid}/cancel", async (
-            Guid id,
-            CancelOrderRequest request,
-            ISender sender,
-            CancellationToken ct) =>
+            Guid id, CancelOrderRequest request, ISender sender, CancellationToken ct) =>
         {
             await sender.Send(new CancelOrderCommand(id, request.Reason), ct);
             return Results.NoContent();
@@ -104,6 +102,56 @@ public static class OrderEndpoints
         .WithSummary("Bulk Import Orders (CSV/Excel)")
         .DisableAntiforgery();
 
+        // ── Split Order ───────────────────────────────────────────────────────
+
+        // POST /api/orders/{id}/split  — Manual Split
+        group.MapPost("/{id:guid}/split", async (
+            Guid id, ManualSplitRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var parts = request.Parts.Select(p => new SplitPartInput(
+                p.Items.Select(i => new ItemAllocationInput(i.ItemId, i.Quantity)).ToList(),
+                p.OverrideDropoffAddress is null ? null : new SplitAddressInput(
+                    p.OverrideDropoffAddress.Street,
+                    p.OverrideDropoffAddress.SubDistrict,
+                    p.OverrideDropoffAddress.District,
+                    p.OverrideDropoffAddress.Province,
+                    p.OverrideDropoffAddress.PostalCode,
+                    p.OverrideDropoffAddress.Latitude,
+                    p.OverrideDropoffAddress.Longitude),
+                p.OverrideDropoffWindow is null ? null : new SplitTimeWindowInput(
+                    p.OverrideDropoffWindow.From,
+                    p.OverrideDropoffWindow.To),
+                p.Notes)).ToList();
+
+            var result = await sender.Send(new SplitOrderCommand(id, parts, request.Reason), ct);
+            return Results.Ok(result);
+        })
+        .WithName("ManualSplitOrder")
+        .WithSummary("Manual Split Order — Planner กำหนด Item allocation เอง");
+
+        // POST /api/orders/{id}/split/auto  — Auto Split by capacity
+        group.MapPost("/{id:guid}/split/auto", async (
+            Guid id, AutoSplitRequest request, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new AutoSplitOrderCommand(
+                id, request.MaxWeightPerSplitKg,
+                request.MaxVolumePerSplitCBM,
+                request.Reason), ct);
+            return Results.Ok(result);
+        })
+        .WithName("AutoSplitOrder")
+        .WithSummary("Auto Split Order ตาม Capacity");
+
+        // GET /api/orders/{id}/splits  — Get child orders of parent
+        group.MapGet("/{id:guid}/splits", async (
+            Guid id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetChildOrdersQuery(id), ct);
+            return Results.Ok(new { Items = result });
+        })
+        .WithName("GetChildOrders")
+        .WithSummary("ดู Child Orders ทั้งหมดของ Parent Order");
+
         return app;
     }
 }
@@ -121,3 +169,36 @@ public sealed record CreateOrderRequest(
     string? Priority = "Normal",
     string? Notes = null
 );
+
+
+// ── Split Order Request Records ───────────────────────────────────────────────
+
+public sealed record ItemAllocationRequest(Guid ItemId, int Quantity);
+
+public sealed record SplitAddressRequest(
+    string Street,
+    string SubDistrict,
+    string District,
+    string Province,
+    string PostalCode,
+    double? Latitude = null,
+    double? Longitude = null);
+
+public sealed record SplitTimeWindowRequest(DateTime From, DateTime To);
+
+public sealed record SplitPartRequest(
+    List<ItemAllocationRequest> Items,
+    SplitAddressRequest? OverrideDropoffAddress = null,
+    SplitTimeWindowRequest? OverrideDropoffWindow = null,
+    string? Notes = null);
+
+/// <summary>Request body for POST /api/orders/{id}/split (Manual Split)</summary>
+public sealed record ManualSplitRequest(
+    List<SplitPartRequest> Parts,
+    string? Reason = null);
+
+/// <summary>Request body for POST /api/orders/{id}/split/auto (Auto Split)</summary>
+public sealed record AutoSplitRequest(
+    decimal MaxWeightPerSplitKg,
+    decimal MaxVolumePerSplitCBM = 0m,
+    string? Reason = null);

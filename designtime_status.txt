@@ -1,0 +1,8 @@
+﻿D:\TMS\TMS\src\Modules\Tms.Documents\Tms.Documents.Infrastructure\Persistence\DocumentsDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Execution\Tms.Execution.Infrastructure\Persistence\ExecutionDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Integration\Tms.Integration.Infrastructure\Persistence\IntegrationDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Orders\Tms.Orders.Infrastructure\Persistence\OrdersDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Planning\Tms.Planning.Infrastructure\Persistence\PlanningDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Platform\Tms.Platform.Infrastructure\Persistence\PlatformDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Resources\Tms.Resources.Infrastructure\Persistence\ResourcesDbContextFactory.cs
+D:\TMS\TMS\src\Modules\Tms.Tracking\Tms.Tracking.Infrastructure\Persistence\TrackingDbContextFactory.cs

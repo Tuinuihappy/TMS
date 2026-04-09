@@ -50,6 +50,8 @@ internal sealed class GeoZoneConfiguration : IEntityTypeConfiguration<GeoZone>
         builder.Property(x => x.CenterLongitude);
         builder.Property(x => x.PolygonCoordinatesJson).HasColumnType("jsonb");
         builder.Property(x => x.IsActive).IsRequired();
+        // "Pickup" | "Dropoff" | null — แยก logic ของ Geofence handler
+        builder.Property(x => x.StopType).HasMaxLength(20);
 
         builder.HasMany<ZoneEvent>()
             .WithOne()

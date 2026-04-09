@@ -126,7 +126,7 @@ public sealed record DispatchTripCommand(Guid TripId) : ICommand;
 
 public sealed class DispatchTripHandler(
     ITripRepository repo,
-    IIntegrationEventPublisher eventPublisher)
+    IOutboxWriter outbox)
     : ICommandHandler<DispatchTripCommand>
 {
     public async Task Handle(DispatchTripCommand request, CancellationToken ct)
@@ -135,19 +135,19 @@ public sealed class DispatchTripHandler(
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
         trip.Dispatch();
-        await repo.UpdateAsync(trip, ct);
 
-        // Publish integration event so Execution module can auto-create Shipments
         var stops = trip.Stops.Select(s => new TripStopSnapshot(
             s.Id, s.Sequence, s.OrderId, s.Type.ToString(),
             s.AddressName, s.AddressStreet, s.AddressProvince,
             s.AddressLatitude, s.AddressLongitude)).ToList();
 
-        await eventPublisher.PublishAsync(
-            new TripDispatchedIntegrationEvent(
-                trip.Id, trip.TripNumber,
-                trip.VehicleId!.Value, trip.DriverId!.Value,
-                trip.TenantId, stops), ct);
+        // Stage event BEFORE SaveChanges → written atomically with the Trip update
+        outbox.Stage(new TripDispatchedIntegrationEvent(
+            trip.Id, trip.TripNumber,
+            trip.VehicleId!.Value, trip.DriverId!.Value,
+            trip.TenantId, stops));
+
+        await repo.UpdateAsync(trip, ct);
     }
 }
 
@@ -156,7 +156,7 @@ public sealed record CompleteTripCommand(Guid TripId) : ICommand;
 
 public sealed class CompleteTripHandler(
     ITripRepository repo,
-    IIntegrationEventPublisher eventPublisher)
+    IOutboxWriter outbox)
     : ICommandHandler<CompleteTripCommand>
 {
     public async Task Handle(CompleteTripCommand request, CancellationToken ct)
@@ -165,11 +165,10 @@ public sealed class CompleteTripHandler(
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
         trip.Complete();
-        await repo.UpdateAsync(trip, ct);
+        outbox.Stage(new TripCompletedIntegrationEvent(
+            trip.Id, trip.TripNumber, trip.VehicleId, trip.DriverId));
 
-        await eventPublisher.PublishAsync(
-            new TripCompletedIntegrationEvent(
-                trip.Id, trip.TripNumber, trip.VehicleId, trip.DriverId), ct);
+        await repo.UpdateAsync(trip, ct);
     }
 }
 
@@ -178,7 +177,7 @@ public sealed record CancelTripCommand(Guid TripId, string Reason) : ICommand;
 
 public sealed class CancelTripHandler(
     ITripRepository repo,
-    IIntegrationEventPublisher eventPublisher)
+    IOutboxWriter outbox)
     : ICommandHandler<CancelTripCommand>
 {
     public async Task Handle(CancelTripCommand request, CancellationToken ct)
@@ -187,14 +186,14 @@ public sealed class CancelTripHandler(
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
         trip.Cancel(request.Reason);
-        await repo.UpdateAsync(trip, ct);
+        outbox.Stage(new TripCancelledIntegrationEvent(
+            trip.Id, trip.TripNumber, request.Reason,
+            trip.VehicleId, trip.DriverId));
 
-        await eventPublisher.PublishAsync(
-            new TripCancelledIntegrationEvent(
-                trip.Id, trip.TripNumber, request.Reason,
-                trip.VehicleId, trip.DriverId), ct);
+        await repo.UpdateAsync(trip, ct);
     }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // QUERIES

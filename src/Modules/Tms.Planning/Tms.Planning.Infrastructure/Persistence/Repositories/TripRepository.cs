@@ -77,4 +77,9 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
         await context.Stops.AddAsync(stop, ct);
         await context.SaveChangesAsync(ct);
     }
+
+    public async Task<Trip?> GetByStopIdAsync(Guid stopId, CancellationToken ct = default) =>
+        await context.Trips
+            .Include(t => t.Stops)
+            .FirstOrDefaultAsync(t => t.Stops.Any(s => s.Id == stopId), ct);
 }

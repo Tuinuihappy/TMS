@@ -23,6 +23,14 @@ public sealed class TransportOrder : AggregateRoot
     public DateTime? UpdatedAt { get; private set; }
     public DateTime? ConfirmedAt { get; private set; }
 
+    // ── Split Order Fields ────────────────────────────────────────────────────
+    /// <summary>ชี้ไปยัง Order ต้นสาย — null ถ้าเป็น original order</summary>
+    public Guid? ParentOrderId { get; private set; }
+    /// <summary>เหตุผลที่ Split: "Manual" | "CapacityExceeded" | "RouteConstraint"</summary>
+    public string? SplitReason { get; private set; }
+    /// <summary>true ถ้าเป็น child order ที่ถูก split ออกมาจาก parent</summary>
+    public bool IsSplitChild => ParentOrderId.HasValue;
+
     private readonly List<OrderItem> _items = [];
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
@@ -30,6 +38,8 @@ public sealed class TransportOrder : AggregateRoot
     public decimal TotalVolume => _items.Sum(i => i.Volume * i.Quantity);
 
     private TransportOrder() { }  // EF Core
+
+    // ── Factories ─────────────────────────────────────────────────────────────
 
     public static TransportOrder Create(
         string orderNumber,
@@ -78,6 +88,44 @@ public sealed class TransportOrder : AggregateRoot
         return order;
     }
 
+    /// <summary>
+    /// สร้าง child order จาก parent — inherit pickup/dropoff address จาก parent โดย default.
+    /// Manual split สามารถ override dropoffAddress และ dropoffWindow ได้
+    /// </summary>
+    public static TransportOrder CreateSplitChild(
+        string childOrderNumber,
+        TransportOrder parent,
+        string splitReason,
+        Address? overrideDropoffAddress = null,
+        TimeWindow? overrideDropoffWindow = null,
+        string? notes = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(childOrderNumber);
+        ArgumentNullException.ThrowIfNull(parent);
+
+        var child = new TransportOrder
+        {
+            OrderNumber = childOrderNumber,
+            CustomerId = parent.CustomerId,
+            Status = OrderStatus.Draft,
+            Priority = parent.Priority,
+            PickupAddress = parent.PickupAddress,
+            DropoffAddress = overrideDropoffAddress ?? parent.DropoffAddress,
+            PickupWindow = parent.PickupWindow,
+            DropoffWindow = overrideDropoffWindow ?? parent.DropoffWindow,
+            Notes = notes ?? $"Split from {parent.OrderNumber}",
+            ParentOrderId = parent.Id,
+            SplitReason = splitReason,
+            CreatedBy = parent.CreatedBy,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        child.AddDomainEvent(new OrderCreatedEvent(child.Id, child.OrderNumber, child.CustomerId));
+        return child;
+    }
+
+    // ── Mutations ─────────────────────────────────────────────────────────────
+
     public void AddItem(OrderItem item)
     {
         if (Status != OrderStatus.Draft)
@@ -85,6 +133,15 @@ public sealed class TransportOrder : AggregateRoot
 
         _items.Add(item);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// เพิ่ม Item โดยไม่ตรวจ Status — ใช้สำหรับสร้าง Split Child orders
+    /// (bypass Draft check ที่ AddItem ปกติมี)
+    /// </summary>
+    public void AddItemInternal(OrderItem item)
+    {
+        _items.Add(item);
     }
 
     public void Confirm()
@@ -110,6 +167,26 @@ public sealed class TransportOrder : AggregateRoot
         Notes = string.IsNullOrWhiteSpace(Notes) ? reason : $"{Notes} | Cancel reason: {reason}";
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new OrderCancelledEvent(Id, OrderNumber, reason));
+    }
+
+    /// <summary>
+    /// Mark parent order ว่าถูก Split บางส่วนออกเป็น child orders.
+    /// Status เปลี่ยนเป็น PartialSplit — ยัง Active แต่ plan ผ่าน child เท่านั้น
+    /// </summary>
+    public void MarkAsSplit(string splitReason, List<Guid> childOrderIds, string splitMode)
+    {
+        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+            throw new DomainException(
+                $"Cannot split order with status '{Status}'. Only Draft or Confirmed orders can be split.",
+                "ORDER_CANNOT_SPLIT");
+
+        if (childOrderIds.Count < 2)
+            throw new DomainException("Split must produce at least 2 child orders.", "SPLIT_INSUFFICIENT_CHILDREN");
+
+        SplitReason = splitReason;
+        Status = OrderStatus.PartialSplit;
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new OrderSplitEvent(Id, OrderNumber, childOrderIds, splitMode));
     }
 
     public void MarkAsPlanned()

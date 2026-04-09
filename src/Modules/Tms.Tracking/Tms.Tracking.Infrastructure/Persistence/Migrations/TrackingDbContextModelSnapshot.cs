@@ -36,11 +36,20 @@ namespace Tms.Tracking.Infrastructure.Persistence.Migrations
                     b.Property<string>("Error")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeadLetter")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("OccurredOn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -106,6 +115,10 @@ namespace Tms.Tracking.Infrastructure.Persistence.Migrations
 
                     b.Property<double?>("RadiusMeters")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("StopType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");

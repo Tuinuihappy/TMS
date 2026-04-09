@@ -8,7 +8,7 @@ namespace Tms.Planning.Application.Features.EventHandlers;
 
 /// <summary>
 /// เมื่อ RoutePlan ถูก Lock → สร้าง Trip อัตโนมัติใน Planning domain
-/// (Trip ถูกสร้างโดยรับ RoutePlanLockedIntegrationEvent)
+/// Stop แต่ละ Stop มี StopType ที่มาจาก RoutePlan (Pickup หรือ Dropoff)
 /// </summary>
 public sealed class RoutePlanLockedCreateTripHandler(ITripRepository tripRepo)
     : INotificationHandler<RoutePlanLockedIntegrationEvent>
@@ -26,10 +26,15 @@ public sealed class RoutePlanLockedCreateTripHandler(ITripRepository tripRepo)
 
         foreach (var stop in notification.Stops.OrderBy(s => s.Sequence))
         {
+            // ใช้ StopType จาก RoutePlan snapshot (ไม่ hardcode Dropoff อีกต่อไป)
+            var stopType = Enum.TryParse<StopType>(stop.StopType, ignoreCase: true, out var parsed)
+                ? parsed
+                : StopType.Dropoff; // fallback → backward compat
+
             trip.AddStop(
                 stop.Sequence,
                 stop.OrderId,
-                StopType.Dropoff,
+                stopType,
                 addressName: null,
                 addressStreet: null,
                 addressProvince: null,

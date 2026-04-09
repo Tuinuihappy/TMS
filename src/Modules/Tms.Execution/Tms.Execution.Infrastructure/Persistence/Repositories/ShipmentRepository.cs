@@ -50,11 +50,27 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<Shipment?> GetByTripAndOrderAsync(Guid tripId, Guid orderId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Include(s => s.POD)
+            .FirstOrDefaultAsync(s => s.TripId == tripId && s.OrderId == orderId, ct);
+
+    public async Task<Shipment?> GetByDropoffStopIdAsync(Guid dropoffStopId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Include(s => s.POD)
+            .FirstOrDefaultAsync(s => s.DropoffStopId == dropoffStopId, ct);
+
     public async Task<IReadOnlyList<Shipment>> GetByTenantPendingAsync(Guid tenantId, CancellationToken ct = default) =>
         await context.Shipments
             .Where(s => s.TenantId == tenantId
                      && (s.Status == Execution.Domain.Enums.ShipmentStatus.PickedUp
                       || s.Status == Execution.Domain.Enums.ShipmentStatus.InTransit))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Shipment>> GetByTenantAllPendingAsync(Guid tenantId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Where(s => s.TenantId == tenantId
+                     && s.Status == Execution.Domain.Enums.ShipmentStatus.Pending)
             .ToListAsync(ct);
 
     public async Task AddAsync(Shipment entity, CancellationToken ct = default)
@@ -88,4 +104,21 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
         await context.PODRecords.AddAsync(pod, ct);
         await context.SaveChangesAsync(ct);
     }
+
+    public async Task<IReadOnlyList<Shipment>> GetActiveByVehiclePickupLocationAsync(
+        Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Where(s => s.TenantId == tenantId
+                     && s.PickupLocationId == locationId
+                     && s.Status == Execution.Domain.Enums.ShipmentStatus.Pending)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Shipment>> GetActiveByVehicleDropoffLocationAsync(
+        Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default) =>
+        await context.Shipments
+            .Where(s => s.TenantId == tenantId
+                     && s.DestinationLocationId == locationId
+                     && (s.Status == Execution.Domain.Enums.ShipmentStatus.PickedUp
+                      || s.Status == Execution.Domain.Enums.ShipmentStatus.InTransit))
+            .ToListAsync(ct);
 }

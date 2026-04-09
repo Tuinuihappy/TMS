@@ -1,0 +1,78 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Tms.SharedKernel -> D:\TMS\TMS\src\Tms.SharedKernel\bin\Debug\net10.0\Tms.SharedKernel.dll
+  Tms.Tracking.Domain -> D:\TMS\TMS\src\Modules\Tms.Tracking\Tms.Tracking.Domain\bin\Debug\net10.0\Tms.Tracking.Domain.dll
+  Tms.Documents.Domain -> D:\TMS\TMS\src\Modules\Tms.Documents\Tms.Documents.Domain\bin\Debug\net10.0\Tms.Documents.Domain.dll
+  Tms.Orders.Domain -> D:\TMS\TMS\src\Modules\Tms.Orders\Tms.Orders.Domain\bin\Debug\net10.0\Tms.Orders.Domain.dll
+  Tms.Planning.Domain -> D:\TMS\TMS\src\Modules\Tms.Planning\Tms.Planning.Domain\bin\Debug\net10.0\Tms.Planning.Domain.dll
+  Tms.Execution.Domain -> D:\TMS\TMS\src\Modules\Tms.Execution\Tms.Execution.Domain\bin\Debug\net10.0\Tms.Execution.Domain.dll
+  Tms.Platform.Domain -> D:\TMS\TMS\src\Modules\Tms.Platform\Tms.Platform.Domain\bin\Debug\net10.0\Tms.Platform.Domain.dll
+  Tms.Resources.Domain -> D:\TMS\TMS\src\Modules\Tms.Resources\Tms.Resources.Domain\bin\Debug\net10.0\Tms.Resources.Domain.dll
+  Tms.Integration.Domain -> D:\TMS\TMS\src\Modules\Tms.Integration\Tms.Integration.Domain\bin\Debug\net10.0\Tms.Integration.Domain.dll
+  Tms.Tracking.Application -> D:\TMS\TMS\src\Modules\Tms.Tracking\Tms.Tracking.Application\bin\Debug\net10.0\Tms.Tracking.Application.dll
+  Tms.Planning.Application -> D:\TMS\TMS\src\Modules\Tms.Planning\Tms.Planning.Application\bin\Debug\net10.0\Tms.Planning.Application.dll
+  Tms.Documents.Application -> D:\TMS\TMS\src\Modules\Tms.Documents\Tms.Documents.Application\bin\Debug\net10.0\Tms.Documents.Application.dll
+  Tms.Platform.Application -> D:\TMS\TMS\src\Modules\Tms.Platform\Tms.Platform.Application\bin\Debug\net10.0\Tms.Platform.Application.dll
+  Tms.Execution.Application -> D:\TMS\TMS\src\Modules\Tms.Execution\Tms.Execution.Application\bin\Debug\net10.0\Tms.Execution.Application.dll
+  Tms.Tracking.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Tracking\Tms.Tracking.Infrastructure\bin\Debug\net10.0\Tms.Tracking.Infrastructure.dll
+  Tms.SharedKernel.UnitTests -> D:\TMS\TMS\tests\Tms.SharedKernel.UnitTests\bin\Debug\net10.0\Tms.SharedKernel.UnitTests.dll
+  Tms.Platform.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Platform\Tms.Platform.Infrastructure\bin\Debug\net10.0\Tms.Platform.Infrastructure.dll
+  Tms.Resources.Application -> D:\TMS\TMS\src\Modules\Tms.Resources\Tms.Resources.Application\bin\Debug\net10.0\Tms.Resources.Application.dll
+  Tms.Planning.UnitTests -> D:\TMS\TMS\tests\Tms.Planning.UnitTests\bin\Debug\net10.0\Tms.Planning.UnitTests.dll
+  Tms.Execution.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Execution\Tms.Execution.Infrastructure\bin\Debug\net10.0\Tms.Execution.Infrastructure.dll
+  Tms.Documents.UnitTests -> D:\TMS\TMS\tests\Tms.Documents.UnitTests\bin\Debug\net10.0\Tms.Documents.UnitTests.dll
+Test run for D:\TMS\TMS\tests\Tms.Planning.UnitTests\bin\Debug\net10.0\Tms.Planning.UnitTests.dll (.NETCoreApp,Version=v10.0)
+Test run for D:\TMS\TMS\tests\Tms.Documents.UnitTests\bin\Debug\net10.0\Tms.Documents.UnitTests.dll (.NETCoreApp,Version=v10.0)
+  Tms.Planning.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Planning\Tms.Planning.Infrastructure\bin\Debug\net10.0\Tms.Planning.Infrastructure.dll
+Test run for D:\TMS\TMS\tests\Tms.SharedKernel.UnitTests\bin\Debug\net10.0\Tms.SharedKernel.UnitTests.dll (.NETCoreApp,Version=v10.0)
+  Tms.Execution.UnitTests -> D:\TMS\TMS\tests\Tms.Execution.UnitTests\bin\Debug\net10.0\Tms.Execution.UnitTests.dll
+  Tms.Resources.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Resources\Tms.Resources.Infrastructure\bin\Debug\net10.0\Tms.Resources.Infrastructure.dll
+Test run for D:\TMS\TMS\tests\Tms.Execution.UnitTests\bin\Debug\net10.0\Tms.Execution.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+  Tms.Tracking.UnitTests -> D:\TMS\TMS\tests\Tms.Tracking.UnitTests\bin\Debug\net10.0\Tms.Tracking.UnitTests.dll
+A total of 1 test files matched the specified pattern.
+Test run for D:\TMS\TMS\tests\Tms.Tracking.UnitTests\bin\Debug\net10.0\Tms.Tracking.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+  Tms.Platform.UnitTests -> D:\TMS\TMS\tests\Tms.Platform.UnitTests\bin\Debug\net10.0\Tms.Platform.UnitTests.dll
+Test run for D:\TMS\TMS\tests\Tms.Platform.UnitTests\bin\Debug\net10.0\Tms.Platform.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 320 ms - Tms.Documents.UnitTests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 180 ms - Tms.SharedKernel.UnitTests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 683 ms - Tms.Planning.UnitTests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 335 ms - Tms.Execution.UnitTests.dll (net10.0)
+  Tms.Documents.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Documents\Tms.Documents.Infrastructure\bin\Debug\net10.0\Tms.Documents.Infrastructure.dll
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 309 ms - Tms.Tracking.UnitTests.dll (net10.0)
+  Tms.Orders.Application -> D:\TMS\TMS\src\Modules\Tms.Orders\Tms.Orders.Application\bin\Debug\net10.0\Tms.Orders.Application.dll
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 247 ms - Tms.Platform.UnitTests.dll (net10.0)
+  Tms.Orders.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Orders\Tms.Orders.Infrastructure\bin\Debug\net10.0\Tms.Orders.Infrastructure.dll
+  Tms.Integration.Application -> D:\TMS\TMS\src\Modules\Tms.Integration\Tms.Integration.Application\bin\Debug\net10.0\Tms.Integration.Application.dll
+  Tms.Orders.UnitTests -> D:\TMS\TMS\tests\Tms.Orders.UnitTests\bin\Debug\net10.0\Tms.Orders.UnitTests.dll
+  Tms.Resources.UnitTests -> D:\TMS\TMS\tests\Tms.Resources.UnitTests\bin\Debug\net10.0\Tms.Resources.UnitTests.dll
+Test run for D:\TMS\TMS\tests\Tms.Resources.UnitTests\bin\Debug\net10.0\Tms.Resources.UnitTests.dll (.NETCoreApp,Version=v10.0)
+Test run for D:\TMS\TMS\tests\Tms.Orders.UnitTests\bin\Debug\net10.0\Tms.Orders.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+  Tms.Integration.UnitTests -> D:\TMS\TMS\tests\Tms.Integration.UnitTests\bin\Debug\net10.0\Tms.Integration.UnitTests.dll
+A total of 1 test files matched the specified pattern.
+Test run for D:\TMS\TMS\tests\Tms.Integration.UnitTests\bin\Debug\net10.0\Tms.Integration.UnitTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 218 ms - Tms.Resources.UnitTests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 510 ms - Tms.Orders.UnitTests.dll (net10.0)
+
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 141 ms - Tms.Integration.UnitTests.dll (net10.0)
+  Tms.Integration.Infrastructure -> D:\TMS\TMS\src\Modules\Tms.Integration\Tms.Integration.Infrastructure\bin\Debug\net10.0\Tms.Integration.Infrastructure.dll
+  Tms.WebApi -> D:\TMS\TMS\src\Tms.WebApi\bin\Debug\net10.0\Tms.WebApi.dll
+  Tms.WebApi.IntegrationTests -> D:\TMS\TMS\tests\Tms.WebApi.IntegrationTests\bin\Debug\net10.0\Tms.WebApi.IntegrationTests.dll
+Test run for D:\TMS\TMS\tests\Tms.WebApi.IntegrationTests\bin\Debug\net10.0\Tms.WebApi.IntegrationTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    12, Skipped:     0, Total:    12, Duration: 1 s - Tms.WebApi.IntegrationTests.dll (net10.0)

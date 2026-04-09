@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Orders.Application.Events;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Domain.Interfaces;
 using Tms.Orders.Infrastructure.Persistence;
@@ -28,13 +29,25 @@ public static class OrdersModule
         // Repositories
         services.AddScoped<IOrderRepository, OrderRepository>();
 
-        // MediatR handlers
+        // Cross-module query service — Planning ใช้อ่าน Order data
+        services.AddScoped<IOrderQueryService, OrderQueryService>();
+
+        // MediatR handlers — Commands + Event handlers
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(OrdersModule).Assembly));
 
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(
                 typeof(CreateOrderHandler).Assembly));
+
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(
+                typeof(TripDispatchedOrderHandler).Assembly));
+
+        // IOutboxWriter — backed by OrdersDbContext
+        services.AddScoped<IOutboxWriter>(sp =>
+            new OutboxWriter<OrdersDbContext>(sp.GetRequiredService<OrdersDbContext>()));
+
 
         // FluentValidation
         services.AddValidatorsFromAssembly(typeof(CreateOrderValidator).Assembly);

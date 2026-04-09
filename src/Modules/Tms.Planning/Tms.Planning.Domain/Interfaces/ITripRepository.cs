@@ -15,4 +15,6 @@ public interface ITripRepository : IRepository<Trip>
     Task<IReadOnlyList<Trip>> GetByDateAsync(DateOnly date, Guid tenantId, CancellationToken ct = default);
     Task<string> GenerateTripNumberAsync(CancellationToken ct = default);
     Task AddStopAsync(Stop stop, CancellationToken ct = default);
+    /// <summary>หา Trip จาก Stop Id (ใช้ใน Stop status event handlers)</summary>
+    Task<Trip?> GetByStopIdAsync(Guid stopId, CancellationToken ct = default);
 }

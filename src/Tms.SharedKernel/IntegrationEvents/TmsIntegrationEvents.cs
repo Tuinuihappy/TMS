@@ -94,6 +94,16 @@ public sealed record TripCompletedIntegrationEvent(
     Guid? VehicleId,
     Guid? DriverId) : IntegrationEvent;
 
+/// <summary>
+/// Fired when a Dispatched/InProgress trip's remaining stops are re-optimized mid-execution.
+/// Execution module can update driver app display in real-time.
+/// </summary>
+public sealed record TripReOptimizedIntegrationEvent(
+    Guid TripId,
+    string TripNumber,
+    List<TripStopSnapshot> ReorderedStops) : IntegrationEvent;
+
+
 // ══════════════════════════════════════════════════════════════════════
 // EXECUTION MODULE — Shipment Events
 // ══════════════════════════════════════════════════════════════════════
@@ -112,6 +122,35 @@ public sealed record ShipmentExceptionIntegrationEvent(
     string ReasonCode,
     string Reason) : IntegrationEvent;
 
+/// <summary>
+/// Execution → Planning: Shipment ถูก PickUp แล้ว
+/// Planning จะ mark Pickup Stops ทุกอันของ Order นั้นใน Trip เป็น Completed
+/// </summary>
+public sealed record ShipmentPickedUpIntegrationEvent(
+    Guid ShipmentId,
+    Guid TripId,
+    Guid OrderId) : IntegrationEvent;
+
+/// <summary>
+/// Execution → Planning: Shipment ถึง Dropoff Stop แล้ว (Arrived)
+/// Planning จะ mark Dropoff Stop เป็น Arrived
+/// </summary>
+public sealed record ShipmentArrivedAtDropoffIntegrationEvent(
+    Guid ShipmentId,
+    Guid TripId,
+    Guid DropoffStopId,
+    Guid OrderId) : IntegrationEvent;
+
+/// <summary>
+/// Execution → Planning: Shipment Delivered สำเร็จ
+/// Planning จะ mark Dropoff Stop เป็น Completed
+/// </summary>
+public sealed record ShipmentDeliveredStopIntegrationEvent(
+    Guid ShipmentId,
+    Guid TripId,
+    Guid DropoffStopId,
+    Guid OrderId) : IntegrationEvent;
+
 // ══════════════════════════════════════════════════════════════════════
 // TRACKING MODULE — Geofencing & ETA Events (Phase 2)
 // ══════════════════════════════════════════════════════════════════════
@@ -121,7 +160,9 @@ public sealed record VehicleEnteredZoneIntegrationEvent(
     Guid ZoneId,
     Guid LocationId,
     DateTime Timestamp,
-    Guid TenantId) : IntegrationEvent;
+    Guid TenantId,
+    /// <summary>"Pickup" | "Dropoff" | null — ถ้า null ให้ treat เป็น Dropoff (backward compat)</summary>
+    string? ZoneStopType = null) : IntegrationEvent;
 
 public sealed record VehicleETAUpdatedIntegrationEvent(
     Guid TripId,
@@ -143,6 +184,8 @@ public sealed record RoutePlanLockedIntegrationEvent(
 public sealed record RoutePlanStopSnapshot(
     int Sequence,
     Guid OrderId,
+    /// <summary>"Pickup" | "Dropoff"</summary>
+    string StopType,
     double Latitude,
     double Longitude,
     DateTime? EstimatedArrivalTime);

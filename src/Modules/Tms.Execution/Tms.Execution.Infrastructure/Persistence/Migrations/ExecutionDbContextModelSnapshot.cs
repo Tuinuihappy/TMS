@@ -176,6 +176,9 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DestinationLocationId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("DropoffStopId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ExceptionReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -190,6 +193,9 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("PickupLocationId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ShipmentNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -199,9 +205,6 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<Guid>("StopId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -214,7 +217,13 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DestinationLocationId");
+
+                    b.HasIndex("DropoffStopId");
+
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("PickupLocationId");
 
                     b.HasIndex("ShipmentNumber")
                         .IsUnique();
@@ -225,6 +234,9 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TripId");
 
+                    b.HasIndex("TripId", "OrderId")
+                        .IsUnique();
+
                     b.ToTable("Shipments", "exe");
                 });
 
@@ -233,6 +245,10 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("DeliveredQty")
                         .HasColumnType("integer");
@@ -245,12 +261,20 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.Property<int>("ExpectedQty")
                         .HasColumnType("integer");
 
+                    b.Property<string>("LotNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("ReturnedQty")
                         .HasColumnType("integer");
 
                     b.Property<string>("SKU")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<Guid>("ShipmentId")
                         .HasColumnType("uuid");
@@ -261,6 +285,10 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Barcode");
+
+                    b.HasIndex("SerialNumber");
 
                     b.HasIndex("ShipmentId");
 
@@ -312,11 +340,20 @@ namespace Tms.Execution.Infrastructure.Persistence.Migrations
                     b.Property<string>("Error")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeadLetter")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("NextRetryAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("OccurredOn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Type")
                         .IsRequired()

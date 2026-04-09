@@ -66,4 +66,35 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             .CountAsync(o => o.OrderNumber.StartsWith(prefix), cancellationToken);
         return $"{prefix}-{(count + 1):D4}";
     }
+
+    // ── Split Order ──────────────────────────────────────────────────────────
+
+    /// <summary>บันทึก child orders หลายใบ (ไม่ SaveChanges — caller จัดการ)</summary>
+    public async Task AddRangeAsync(
+        IEnumerable<TransportOrder> orders,
+        CancellationToken cancellationToken = default)
+    {
+        await context.TransportOrders.AddRangeAsync(orders, cancellationToken);
+        // SaveChanges จะถูกเรียกโดย caller (UpdateAsync parent) เพื่อ atomic
+    }
+
+    public async Task<IReadOnlyList<TransportOrder>> GetChildOrdersAsync(
+        Guid parentOrderId,
+        CancellationToken cancellationToken = default)
+    {
+        return await context.TransportOrders
+            .Where(o => o.ParentOrderId == parentOrderId)
+            .OrderBy(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TransportOrder>> GetByIdsAsync(
+        IEnumerable<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        return await context.TransportOrders
+            .Where(o => idList.Contains(o.Id))
+            .ToListAsync(cancellationToken);
+    }
 }

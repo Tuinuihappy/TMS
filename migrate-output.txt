@@ -1,0 +1,92 @@
+﻿Build started...
+Build succeeded.
+An error occurred using the connection to database 'tms_dev' on server 'tcp://localhost:5434'.
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260329161525_Initial_v1'.
+Applying migration '20260331133320_Phase1_AmendAndDangerousGoods'.
+Applying migration '20260406044448_AddOutboxPattern'.
+Applying migration '20260408074013_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (22ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM pln."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260329155834_Initial_v1'.
+Applying migration '20260404065516_Add_RoutePlans'.
+Applying migration '20260406044520_AddOutboxPattern'.
+Applying migration '20260408044037_PDP_RouteStop_AddStopType'.
+Applying migration '20260408074031_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (20ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM exe."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260329155824_Initial_v1'.
+Applying migration '20260404063114_Add_DestinationLocationId'.
+Applying migration '20260406044535_AddOutboxPattern'.
+Applying migration '20260408041227_Sol1_ShipmentPerOrder_DropoffStopId'.
+Applying migration '20260408074042_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (21ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM res."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260329155842_Initial_v1'.
+Applying migration '20260406044547_AddOutboxPattern'.
+Applying migration '20260408074054_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (19ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM plf."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260329155852_Initial_v1'.
+Applying migration '20260404070729_Add_MessageTemplates'.
+Applying migration '20260406044600_AddOutboxPattern'.
+Applying migration '20260408074108_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (18ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM trk."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260404035329_Initial_Tracking'.
+Applying migration '20260406044615_AddOutboxPattern'.
+Applying migration '20260408041254_Sol1_GeoZone_StopType'.
+Applying migration '20260408074121_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (23ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM doc."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260406023035_Phase4_Documents'.
+Applying migration '20260406044640_AddOutboxPattern'.
+Applying migration '20260408074134_SyncDomainModel'.
+Done.
+Build started...
+Build succeeded.
+Failed executing DbCommand (18ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM itg."__EFMigrationsHistory"
+ORDER BY "MigrationId";
+Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+Applying migration '20260406022942_Phase4_Integration'.
+Applying migration '20260406044628_AddOutboxPattern'.
+Applying migration '20260408074146_SyncDomainModel'.
+Done.

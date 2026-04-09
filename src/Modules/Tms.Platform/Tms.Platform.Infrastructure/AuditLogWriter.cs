@@ -6,20 +6,22 @@ namespace Tms.Platform.Infrastructure;
 
 /// <summary>
 /// Bridges IAuditLogWriter (SharedKernel) → IAuditLogRepository (Platform).
-/// Registered in PlatformModule so the AuditLogBehavior pipeline can work.
+/// Captures UserId + TenantId from the pipeline for every auditable command.
 /// </summary>
 public sealed class AuditLogWriter(IAuditLogRepository repo) : IAuditLogWriter
 {
     public async Task WriteAsync(
         string action, string resource, string? resourceId,
-        string? details, CancellationToken ct)
+        string? details, Guid? userId, Guid? tenantId,
+        CancellationToken ct)
     {
         var log = AuditLog.Create(
-            action: action,
-            resource: resource,
-            tenantId: Guid.Empty, // Phase 3: resolve from ICurrentUserContext
+            action:     action,
+            resource:   resource,
+            tenantId:   tenantId ?? Guid.Empty,
+            userId:     userId,
             resourceId: resourceId,
-            details: details);
+            details:    details);
 
         await repo.AddAsync(log, ct);
     }

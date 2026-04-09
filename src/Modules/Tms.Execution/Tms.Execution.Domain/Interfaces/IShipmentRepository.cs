@@ -13,9 +13,18 @@ public interface IShipmentRepository : IRepository<Shipment>
         Guid? tenantId = null,
         CancellationToken ct = default);
     Task<IReadOnlyList<Shipment>> GetByTripIdAsync(Guid tripId, CancellationToken ct = default);
-    /// <summary>Used by Geofence handler to find in-progress shipments for a tenant</summary>
+    Task<Shipment?> GetByTripAndOrderAsync(Guid tripId, Guid orderId, CancellationToken ct = default);
+    Task<Shipment?> GetByDropoffStopIdAsync(Guid dropoffStopId, CancellationToken ct = default);
     Task<IReadOnlyList<Shipment>> GetByTenantPendingAsync(Guid tenantId, CancellationToken ct = default);
+    Task<IReadOnlyList<Shipment>> GetByTenantAllPendingAsync(Guid tenantId, CancellationToken ct = default);
     Task<string> GenerateShipmentNumberAsync(CancellationToken ct = default);
     Task AddPodRecordAsync(PODRecord pod, CancellationToken ct = default);
-}
 
+    /// <summary>Geofence Pickup zone: Pending shipments whose PickupLocationId == locationId owned by this tenant's active trip.</summary>
+    Task<IReadOnlyList<Shipment>> GetActiveByVehiclePickupLocationAsync(
+        Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>Geofence Dropoff zone: PickedUp/InTransit shipments whose DestinationLocationId == locationId.</summary>
+    Task<IReadOnlyList<Shipment>> GetActiveByVehicleDropoffLocationAsync(
+        Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default);
+}

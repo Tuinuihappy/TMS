@@ -12,6 +12,8 @@ public sealed class GeoZone : AggregateRoot
     public string Name { get; private set; } = string.Empty;
     public GeoZoneType Type { get; private set; }
     public Guid? LocationId { get; private set; } // FK to Master Data Location
+    /// <summary>Optional: ระบุว่า Zone นี้ใช้สำหรับ Pickup หรือ Dropoff — null = ไม่ระบุ</summary>
+    public string? StopType { get; private set; } // "Pickup" | "Dropoff" | null
     public Guid TenantId { get; private set; }
     public bool IsActive { get; private set; }
 
@@ -31,7 +33,8 @@ public sealed class GeoZone : AggregateRoot
         double centerLat,
         double centerLng,
         double radiusMeters,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        string? stopType = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         return new GeoZone
@@ -40,6 +43,7 @@ public sealed class GeoZone : AggregateRoot
             TenantId = tenantId,
             Type = GeoZoneType.Circle,
             LocationId = locationId,
+            StopType = stopType,
             CenterLatitude = centerLat,
             CenterLongitude = centerLng,
             RadiusMeters = radiusMeters,
@@ -51,7 +55,8 @@ public sealed class GeoZone : AggregateRoot
         string name,
         Guid tenantId,
         string polygonCoordinatesJson,
-        Guid? locationId = null)
+        Guid? locationId = null,
+        string? stopType = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         return new GeoZone
@@ -60,6 +65,7 @@ public sealed class GeoZone : AggregateRoot
             TenantId = tenantId,
             Type = GeoZoneType.Polygon,
             LocationId = locationId,
+            StopType = stopType,
             PolygonCoordinatesJson = polygonCoordinatesJson,
             IsActive = true
         };

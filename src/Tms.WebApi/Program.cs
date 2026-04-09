@@ -1,4 +1,4 @@
-using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Tms.Documents.Infrastructure;
@@ -34,6 +34,14 @@ builder.Services
     .AddIntegrationModule(builder.Configuration)
     .AddDocumentsModule(builder.Configuration);
 
+// ──── Idempotency DbContext (shared "idm" schema) ────────────
+builder.Services.AddDbContext<IdempotencyDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDb")));
+
+// ──── Tenant Context (scoped per request) ────────────────────
+builder.Services.AddScoped<TenantContextHolder>();
+builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContextHolder>());
+
 // ──── API ─────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -42,11 +50,16 @@ builder.Services.AddSwaggerGen(c =>
     c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
     c.AddSecurityDefinition("Bearer", new()
     {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "Bearer",
+        Name        = "Authorization",
+        Type        = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme      = "Bearer",
         BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header
+        In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Prod: Bearer <jwt>  |  Dev: X-UserId + X-TenantId headers"
+    });
+    c.AddSecurityRequirement(new()
+    {
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }] = []
     });
 });
 
@@ -54,29 +67,36 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-// ──── Integration Events (In-Process) ────────────────────────
+// ──── Integration Events (in-process via MediatR — staged via IOutboxWriter) ─
 builder.Services.AddScoped<IIntegrationEventPublisher, MediatRIntegrationEventPublisher>();
 
-// ──── Audit Log Pipeline (auto-record for IAuditableCommand) ──
-builder.Services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
+// ──── MediatR Pipelines ───────────────────────────────────────
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditLogBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
 
-// ──── Background Jobs ──────────────────────────────────────────
-builder.Services.AddHostedService<Tms.WebApi.Infrastructure.BackgroundJobs.OutboxProcessorJob>();
-
-// ──── SignalR (Real-time Live Tracking Map) ──────────────────
-builder.Services.AddSignalR();
-
-// ──── Auth (optional in dev) ──────────────────────────────────
+// ──── Auth ────────────────────────────────────────────────────
 var jwtAuthority = builder.Configuration["Jwt:Authority"];
 if (!string.IsNullOrWhiteSpace(jwtAuthority))
 {
     builder.Services.AddAuthentication().AddJwtBearer(o =>
     {
         o.Authority = jwtAuthority;
-        o.Audience = builder.Configuration["Jwt:Audience"] ?? "tms-api";
+        o.Audience  = builder.Configuration["Jwt:Audience"] ?? "tms-api";
     });
-    builder.Services.AddAuthorization();
 }
+else
+{
+    // Dev mode — TenantContextMiddleware injects identity from X-UserId / X-TenantId headers
+    builder.Services.AddAuthentication();
+}
+builder.Services.AddAuthorization();
+
+// ──── Background Jobs ─────────────────────────────────────────
+builder.Services.AddHostedService<Tms.WebApi.Infrastructure.BackgroundJobs.OutboxProcessorJob>();
+builder.Services.AddHostedService<Tms.WebApi.Infrastructure.BackgroundJobs.ReconciliationJob>();
+
+// ──── SignalR ─────────────────────────────────────────────────
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -92,12 +112,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
+app.UseAuthentication();
+app.UseAuthorization();
 
-if (!string.IsNullOrWhiteSpace(jwtAuthority))
-{
-    app.UseAuthentication();
-    app.UseAuthorization();
-}
+// Tenant context middleware — populates ITenantContext for every request
+app.UseMiddleware<TenantContextMiddleware>();
 
 // ──── Endpoints ────────────────────────────────────────────────
 app.MapOrderEndpoints();
@@ -115,6 +134,8 @@ app.MapOmsEndpoints();
 app.MapAmrEndpoints();
 app.MapErpEndpoints();
 app.MapDocumentEndpoints();
+// Phase 6 — Operability
+app.MapOperabilityEndpoints();
 
 // ──── SignalR Hub ─────────────────────────────────────────────
 app.MapHub<Tms.WebApi.Hubs.TrackingHub>("/hubs/tracking");
@@ -122,7 +143,7 @@ app.MapHub<Tms.WebApi.Hubs.TrackingHub>("/hubs/tracking");
 app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
     .WithTags("Health");
 
-// ──── Auto-Migrate All Modules (dev only) ────────────────────
+// ──── Auto-Migrate All Modules (dev / --migrate flag) ────────
 if (app.Environment.IsDevelopment() || args.Contains("--migrate"))
 {
     using var scope = app.Services.CreateScope();
@@ -138,23 +159,15 @@ if (app.Environment.IsDevelopment() || args.Contains("--migrate"))
         await sp.GetRequiredService<Tms.Tracking.Infrastructure.Persistence.TrackingDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Integration.Infrastructure.Persistence.IntegrationDbContext>().Database.MigrateAsync();
         await sp.GetRequiredService<Tms.Documents.Infrastructure.Persistence.DocumentsDbContext>().Database.MigrateAsync();
+        await sp.GetRequiredService<IdempotencyDbContext>().Database.MigrateAsync();
         Log.Information("All database migrations applied successfully.");
     }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Failed to apply database migrations.");
-    }
+    catch (Exception ex) { Log.Error(ex, "Failed to apply database migrations."); }
 }
 
-// ──── Database Seeder (Run on Startup) ──────────────────────
-try
-{
-    await Tms.WebApi.Infrastructure.Seeders.DatabaseSeeder.SeedAsync(app);
-}
-catch (Exception ex)
-{
-    Log.Error(ex, "Failed to seed database.");
-}
+// ──── Database Seeder ──────────────────────────────────────────
+try { await Tms.WebApi.Infrastructure.Seeders.DatabaseSeeder.SeedAsync(app); }
+catch (Exception ex) { Log.Error(ex, "Failed to seed database."); }
 
 app.Run();
 

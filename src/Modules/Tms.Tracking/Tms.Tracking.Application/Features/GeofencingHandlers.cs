@@ -22,6 +22,7 @@ public sealed record CreateGeoZoneCommand(
     Guid TenantId,
     string Type,                    // "Circle" | "Polygon"
     Guid? LocationId,
+    string? StopType,               // "Pickup" | "Dropoff" | null
     double? CenterLat,
     double? CenterLng,
     double? RadiusMeters,
@@ -40,11 +41,11 @@ public sealed class CreateGeoZoneHandler(IGeoZoneRepository repo)
                 req.CenterLat ?? throw new ArgumentNullException(nameof(req.CenterLat)),
                 req.CenterLng ?? throw new ArgumentNullException(nameof(req.CenterLng)),
                 req.RadiusMeters ?? throw new ArgumentNullException(nameof(req.RadiusMeters)),
-                req.LocationId)
+                req.LocationId, req.StopType)
             : GeoZone.CreatePolygon(
                 req.Name, req.TenantId,
                 req.PolygonCoordinatesJson ?? throw new ArgumentNullException(nameof(req.PolygonCoordinatesJson)),
-                req.LocationId);
+                req.LocationId, req.StopType);
 
         await repo.AddAsync(zone, ct);
         return zone.Id;
@@ -134,7 +135,9 @@ public sealed class RunGeofenceChecksHandler(
                             zone.Id,
                             zone.LocationId.Value,
                             DateTime.UtcNow,
-                            req.TenantId), ct);
+                            req.TenantId,
+                            zone.StopType),   // "Pickup" | "Dropoff" | null
+                        ct);
                 }
             }
         }

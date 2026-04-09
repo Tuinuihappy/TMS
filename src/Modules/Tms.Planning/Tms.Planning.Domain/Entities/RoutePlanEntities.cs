@@ -79,12 +79,14 @@ public sealed class RoutePlan : AggregateRoot
     }
 }
 
-/// <summary>One delivery stop on a RoutePlan</summary>
+/// <summary>One stop on a RoutePlan — can be Pickup or Dropoff</summary>
 public sealed class RouteStop : BaseEntity
 {
     public Guid RoutePlanId { get; private set; }
     public int Sequence { get; private set; }
     public Guid OrderId { get; private set; }
+    /// <summary>"Pickup" | "Dropoff"</summary>
+    public string StopType { get; private set; } = "Dropoff";
     public double Latitude { get; private set; }
     public double Longitude { get; private set; }
     public DateTime? EstimatedArrivalTime { get; private set; }
@@ -94,6 +96,7 @@ public sealed class RouteStop : BaseEntity
 
     public static RouteStop Create(
         Guid routePlanId, int sequence, Guid orderId,
+        string stopType,
         double lat, double lng,
         DateTime? etaArrival = null, DateTime? etaDeparture = null)
     {
@@ -102,6 +105,7 @@ public sealed class RouteStop : BaseEntity
             RoutePlanId = routePlanId,
             Sequence = sequence,
             OrderId = orderId,
+            StopType = stopType,
             Latitude = lat,
             Longitude = lng,
             EstimatedArrivalTime = etaArrival,

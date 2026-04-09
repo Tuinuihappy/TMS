@@ -1,0 +1,26 @@
+﻿=== Tms.Documents ===
+20260406023035_Phase4_Documents.cs
+20260406023035_Phase4_Documents.Designer.cs
+20260406044640_AddOutboxPattern.cs
+20260406044640_AddOutboxPattern.Designer.cs
+DocumentsDbContextModelSnapshot.cs
+=== Tms.Integration ===
+20260406022942_Phase4_Integration.cs
+20260406022942_Phase4_Integration.Designer.cs
+20260406044628_AddOutboxPattern.cs
+20260406044628_AddOutboxPattern.Designer.cs
+IntegrationDbContextModelSnapshot.cs
+=== Tms.Resources ===
+20260329155842_Initial_v1.cs
+20260329155842_Initial_v1.Designer.cs
+20260406044547_AddOutboxPattern.cs
+20260406044547_AddOutboxPattern.Designer.cs
+ResourcesDbContextModelSnapshot.cs
+=== Tms.Tracking ===
+20260404035329_Initial_Tracking.cs
+20260404035329_Initial_Tracking.Designer.cs
+20260406044615_AddOutboxPattern.cs
+20260406044615_AddOutboxPattern.Designer.cs
+20260408041254_Sol1_GeoZone_StopType.cs
+20260408041254_Sol1_GeoZone_StopType.Designer.cs
+TrackingDbContextModelSnapshot.cs

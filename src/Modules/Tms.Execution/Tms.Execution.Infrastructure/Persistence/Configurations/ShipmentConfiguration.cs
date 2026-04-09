@@ -15,8 +15,13 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.HasIndex(x => x.ShipmentNumber).IsUnique();
         builder.HasIndex(x => x.TripId);
         builder.HasIndex(x => x.OrderId);
+        builder.HasIndex(x => x.DropoffStopId);
+        // Composite index สำหรับ query (TripId, OrderId) — idempotency + lookup
+        builder.HasIndex(x => new { x.TripId, x.OrderId }).IsUnique();
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => x.PickupLocationId);
+        builder.HasIndex(x => x.DestinationLocationId);
 
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.AddressName).HasMaxLength(200);
@@ -53,9 +58,16 @@ public sealed class ShipmentItemConfiguration : IEntityTypeConfiguration<Shipmen
         builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
         builder.Property(x => x.SKU).HasMaxLength(100);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        // Barcode / serial tracking
+        builder.Property(x => x.Barcode).HasMaxLength(200);
+        builder.Property(x => x.SerialNumber).HasMaxLength(200);
+        builder.Property(x => x.LotNumber).HasMaxLength(100);
+        builder.HasIndex(x => x.Barcode);
+        builder.HasIndex(x => x.SerialNumber);
         builder.Ignore(x => x.DomainEvents);
     }
 }
+
 
 public sealed class PODRecordConfiguration : IEntityTypeConfiguration<PODRecord>
 {

@@ -2,10 +2,11 @@ using Tms.Execution.Domain.Entities;
 using Tms.Execution.Domain.Interfaces;
 using Tms.SharedKernel.Application;
 using Tms.SharedKernel.Exceptions;
+using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Execution.Application.Features.UpdateShipmentStatus;
 
-// ── DTOs shared across commands ──────────────────────────────────────
+// ── DTOs ─────────────────────────────────────────────────────────────
 public sealed record DeliveredItemDto(Guid ShipmentItemId, int DeliveredQty);
 
 public sealed record PodDto(
@@ -18,7 +19,9 @@ public sealed record PodDto(
 // ── PickUp ───────────────────────────────────────────────────────────
 public sealed record PickUpShipmentCommand(Guid ShipmentId) : ICommand;
 
-public sealed class PickUpShipmentHandler(IShipmentRepository repo)
+public sealed class PickUpShipmentHandler(
+    IShipmentRepository repo,
+    IOutboxWriter outbox)
     : ICommandHandler<PickUpShipmentCommand>
 {
     public async Task Handle(PickUpShipmentCommand request, CancellationToken ct)
@@ -26,6 +29,10 @@ public sealed class PickUpShipmentHandler(IShipmentRepository repo)
         var shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
         shipment.PickUp();
+
+        outbox.Stage(new ShipmentPickedUpIntegrationEvent(
+            shipment.Id, shipment.TripId, shipment.OrderId));
+
         await repo.UpdateAsync(shipment, ct);
     }
 }
@@ -33,7 +40,9 @@ public sealed class PickUpShipmentHandler(IShipmentRepository repo)
 // ── Arrive ───────────────────────────────────────────────────────────
 public sealed record ArriveShipmentCommand(Guid ShipmentId) : ICommand;
 
-public sealed class ArriveShipmentHandler(IShipmentRepository repo)
+public sealed class ArriveShipmentHandler(
+    IShipmentRepository repo,
+    IOutboxWriter outbox)
     : ICommandHandler<ArriveShipmentCommand>
 {
     public async Task Handle(ArriveShipmentCommand request, CancellationToken ct)
@@ -41,6 +50,11 @@ public sealed class ArriveShipmentHandler(IShipmentRepository repo)
         var shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
         shipment.Arrive();
+
+        outbox.Stage(new ShipmentArrivedAtDropoffIntegrationEvent(
+            shipment.Id, shipment.TripId,
+            shipment.DropoffStopId, shipment.OrderId));
+
         await repo.UpdateAsync(shipment, ct);
     }
 }
@@ -51,7 +65,9 @@ public sealed record DeliverShipmentCommand(
     List<DeliveredItemDto> Items,
     PodDto Pod) : ICommand;
 
-public sealed class DeliverShipmentHandler(IShipmentRepository repo)
+public sealed class DeliverShipmentHandler(
+    IShipmentRepository repo,
+    IOutboxWriter outbox)
     : ICommandHandler<DeliverShipmentCommand>
 {
     public async Task Handle(DeliverShipmentCommand request, CancellationToken ct)
@@ -60,26 +76,29 @@ public sealed class DeliverShipmentHandler(IShipmentRepository repo)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
 
         var pod = CreatePod(shipment.Id, request.Pod);
-
-        // Add POD record directly (avoids EF treating new POD as modification)
         await repo.AddPodRecordAsync(pod, ct);
 
-        // Re-load shipment so it picks up the POD
+        // Re-load so EF picks up the saved POD
         shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
 
         var items = request.Items.Select(i => (i.ShipmentItemId, i.DeliveredQty));
         shipment.Deliver(items, shipment.POD!);
+
+        // Stage downstream events atomically
+        outbox.Stage(new ShipmentDeliveredStopIntegrationEvent(
+            shipment.Id, shipment.TripId, shipment.DropoffStopId, shipment.OrderId));
+        outbox.Stage(new ShipmentDeliveredIntegrationEvent(
+            shipment.Id, shipment.ShipmentNumber, shipment.OrderId,
+            shipment.TripId, shipment.DeliveredAt!.Value));
+
         await repo.UpdateAsync(shipment, ct);
     }
 
     private static PODRecord CreatePod(Guid shipmentId, PodDto dto)
     {
-        var pod = PODRecord.Create(
-            shipmentId, dto.ReceiverName, dto.SignatureUrl,
-            dto.Latitude, dto.Longitude);
-        foreach (var url in dto.PhotoUrls ?? [])
-            pod.AddPhoto(url);
+        var pod = PODRecord.Create(shipmentId, dto.ReceiverName, dto.SignatureUrl, dto.Latitude, dto.Longitude);
+        foreach (var url in dto.PhotoUrls ?? []) pod.AddPhoto(url);
         return pod;
     }
 }
@@ -90,7 +109,9 @@ public sealed record PartialDeliverShipmentCommand(
     List<DeliveredItemDto> Items,
     PodDto Pod) : ICommand;
 
-public sealed class PartialDeliverShipmentHandler(IShipmentRepository repo)
+public sealed class PartialDeliverShipmentHandler(
+    IShipmentRepository repo,
+    IOutboxWriter outbox)
     : ICommandHandler<PartialDeliverShipmentCommand>
 {
     public async Task Handle(PartialDeliverShipmentCommand request, CancellationToken ct)
@@ -98,12 +119,9 @@ public sealed class PartialDeliverShipmentHandler(IShipmentRepository repo)
         var shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
             ?? throw new NotFoundException(nameof(Shipment), request.ShipmentId);
 
-        var pod = PODRecord.Create(
-            shipment.Id, request.Pod.ReceiverName, request.Pod.SignatureUrl,
+        var pod = PODRecord.Create(shipment.Id, request.Pod.ReceiverName, request.Pod.SignatureUrl,
             request.Pod.Latitude, request.Pod.Longitude);
-        foreach (var url in request.Pod.PhotoUrls ?? [])
-            pod.AddPhoto(url);
-
+        foreach (var url in request.Pod.PhotoUrls ?? []) pod.AddPhoto(url);
         await repo.AddPodRecordAsync(pod, ct);
 
         shipment = await repo.GetByIdAsync(request.ShipmentId, ct)
@@ -111,6 +129,10 @@ public sealed class PartialDeliverShipmentHandler(IShipmentRepository repo)
 
         var items = request.Items.Select(i => (i.ShipmentItemId, i.DeliveredQty));
         shipment.PartialDeliver(items, shipment.POD!);
+
+        outbox.Stage(new ShipmentDeliveredStopIntegrationEvent(
+            shipment.Id, shipment.TripId, shipment.DropoffStopId, shipment.OrderId));
+
         await repo.UpdateAsync(shipment, ct);
     }
 }

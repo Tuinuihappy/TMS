@@ -46,6 +46,7 @@ public sealed class Stop : BaseEntity
     public void Arrive() { Status = StopStatus.Arrived; ArrivalAt = DateTime.UtcNow; }
     public void Complete() { Status = StopStatus.Completed; DepartureAt = DateTime.UtcNow; }
     public void Skip() => Status = StopStatus.Skipped;
+    public void UpdateSequence(int newSequence) => Sequence = newSequence;
 }
 
 public sealed class Trip : AggregateRoot
@@ -176,4 +177,26 @@ public sealed class Trip : AggregateRoot
         TotalDistanceKm = totalDistanceKm;
         EstimatedDurationMin = estimatedDurationMin;
     }
+
+    /// <summary>
+    /// Called after each stop completes. Automatically transitions the Trip to Completed
+    /// if every Dropoff stop is either Completed or Skipped.
+    /// Returns true if the Trip was just auto-completed (caller should stage TripCompletedIntegrationEvent).
+    /// </summary>
+    public bool TryAutoComplete()
+    {
+        if (Status is not (TripStatus.Dispatched or TripStatus.InProgress))
+            return false;
+
+        var allDropoffsFinished = _stops
+            .Where(s => s.Type == StopType.Dropoff)
+            .All(s => s.Status is StopStatus.Completed or StopStatus.Skipped);
+
+        if (!allDropoffsFinished) return false;
+
+        Status = TripStatus.Completed;
+        CompletedAt = DateTime.UtcNow;
+        return true;
+    }
 }
+

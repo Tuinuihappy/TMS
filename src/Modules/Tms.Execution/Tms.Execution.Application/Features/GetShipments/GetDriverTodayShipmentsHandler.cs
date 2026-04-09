@@ -27,7 +27,7 @@ public sealed class GetDriverTodayShipmentsHandler(IShipmentRepository repo)
             .ToList();
 
         return todayShipments.Select(s => new ShipmentDto(
-            s.Id, s.ShipmentNumber, s.TripId, s.OrderId,
+            s.Id, s.ShipmentNumber, s.TripId, s.OrderId, s.DropoffStopId,
             s.Status.ToString(),
             s.AddressName, s.AddressStreet, s.AddressProvince,
             s.ExceptionReason, s.ExceptionReasonCode,

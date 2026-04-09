@@ -33,10 +33,14 @@ internal sealed class RouteStopConfiguration : IEntityTypeConfiguration<RouteSto
         builder.Property(x => x.RoutePlanId).IsRequired();
         builder.Property(x => x.Sequence).IsRequired();
         builder.Property(x => x.OrderId).IsRequired();
+        // "Pickup" | "Dropoff" — required, default "Dropoff" for backward compat
+        builder.Property(x => x.StopType).HasMaxLength(20).IsRequired()
+            .HasDefaultValue("Dropoff");
         builder.Property(x => x.Latitude).IsRequired();
         builder.Property(x => x.Longitude).IsRequired();
 
         builder.HasIndex(x => x.RoutePlanId);
+        builder.HasIndex(x => new { x.RoutePlanId, x.StopType });
     }
 }
 

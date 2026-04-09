@@ -26,6 +26,7 @@ public sealed record ShipmentDto(
     string ShipmentNumber,
     Guid TripId,
     Guid OrderId,
+    Guid DropoffStopId,
     string Status,
     string? AddressName,
     string? AddressStreet,
@@ -63,7 +64,7 @@ public sealed class GetShipmentsHandler(IShipmentRepository repo)
     }
 
     private static ShipmentDto MapToDto(Tms.Execution.Domain.Entities.Shipment s) => new(
-        s.Id, s.ShipmentNumber, s.TripId, s.OrderId,
+        s.Id, s.ShipmentNumber, s.TripId, s.OrderId, s.DropoffStopId,
         s.Status.ToString(),
         s.AddressName, s.AddressStreet, s.AddressProvince,
         s.ExceptionReason, s.ExceptionReasonCode,
@@ -92,7 +93,7 @@ public sealed class GetShipmentByIdHandler(IShipmentRepository repo)
         if (s is null) return null;
 
         return new ShipmentDto(
-            s.Id, s.ShipmentNumber, s.TripId, s.OrderId,
+            s.Id, s.ShipmentNumber, s.TripId, s.OrderId, s.DropoffStopId,
             s.Status.ToString(),
             s.AddressName, s.AddressStreet, s.AddressProvince,
             s.ExceptionReason, s.ExceptionReasonCode,

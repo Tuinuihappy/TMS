@@ -1,0 +1,8 @@
+﻿Tms.Documents => src\Modules\Tms.Documents\Tms.Documents.Infrastructure\Migrations | 5 files
+Tms.Execution => src\Modules\Tms.Execution\Tms.Execution.Infrastructure\Persistence\Migrations | 9 files
+Tms.Integration => src\Modules\Tms.Integration\Tms.Integration.Infrastructure\Migrations | 5 files
+Tms.Orders => src\Modules\Tms.Orders\Tms.Orders.Infrastructure\Persistence\Migrations | 7 files
+Tms.Planning => src\Modules\Tms.Planning\Tms.Planning.Infrastructure\Persistence\Migrations | 9 files
+Tms.Platform => src\Modules\Tms.Platform\Tms.Platform.Infrastructure\Persistence\Migrations | 7 files
+Tms.Resources => src\Modules\Tms.Resources\Tms.Resources.Infrastructure\Persistence\Migrations | 5 files
+Tms.Tracking => src\Modules\Tms.Tracking\Tms.Tracking.Infrastructure\Persistence\Migrations | 7 files

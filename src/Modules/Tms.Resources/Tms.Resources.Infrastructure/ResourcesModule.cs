@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Resources.Application.Events;
 using Tms.Resources.Application.Features;
 using Tms.Resources.Domain.Interfaces;
 using Tms.Resources.Infrastructure.Persistence;
@@ -33,7 +34,13 @@ public static class ResourcesModule
         {
             cfg.RegisterServicesFromAssembly(typeof(CreateVehicleHandler).Assembly);
             cfg.RegisterServicesFromAssembly(typeof(ResourcesModule).Assembly);
+            // Phase 3: TripCompleted → auto-release vehicle + driver
+            cfg.RegisterServicesFromAssembly(typeof(TripCompletedResourceReleaseHandler).Assembly);
         });
+
+        // IOutboxWriter — backed by ResourcesDbContext
+        services.AddScoped<IOutboxWriter>(sp =>
+            new OutboxWriter<ResourcesDbContext>(sp.GetRequiredService<ResourcesDbContext>()));
 
         // Background worker: Check vehicle/driver expiry alerts daily
         services.AddHostedService<ExpiryAlertBackgroundWorker>();
