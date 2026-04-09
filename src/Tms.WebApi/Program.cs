@@ -42,6 +42,10 @@ builder.Services.AddDbContext<IdempotencyDbContext>(options =>
 builder.Services.AddScoped<TenantContextHolder>();
 builder.Services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContextHolder>());
 
+// ──── CORS (dev) ──────────────────────────────────────────────
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
 // ──── API ─────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -104,6 +108,11 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseHsts();
+app.UseCors();
+
+// ──── Static Files (Dashboard UI) ─────────────────────────────
+app.UseDefaultFiles();  // serves index.html at /
+app.UseStaticFiles();   // serves wwwroot/**
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMS — Transport Management System</title>
+  <meta name="description"
+    content="TMS Dispatch Board — Full-featured transport management dashboard covering all 114 API endpoints">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+</head>
+
+<body>
+  <div class="app-layout">
+    <!-- ═══ Sidebar ═══════════════════════════════════════════ -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">T</div>
+        <div>
+          <div class="sidebar-title">TMS</div>
+          <div class="sidebar-subtitle">Dispatch Board</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <div class="nav-item active" data-view="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Operations</div>
+          <div class="nav-item" data-view="orders"><span class="nav-icon">📦</span><span>Orders</span></div>
+          <div class="nav-item" data-view="planning"><span class="nav-icon">🗺️</span><span>Route Planning</span></div>
+          <div class="nav-item" data-view="dispatch"><span class="nav-icon">🚛</span><span>Dispatch Board</span></div>
+          <div class="nav-item" data-view="shipments"><span class="nav-icon">📬</span><span>Shipments</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Resources</div>
+          <div class="nav-item" data-view="fleet"><span class="nav-icon">🚗</span><span>Vehicles</span></div>
+          <div class="nav-item" data-view="drivers"><span class="nav-icon">👤</span><span>Drivers</span></div>
+          <div class="nav-item" data-view="tracking"><span class="nav-icon">📡</span><span>Live Tracking</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Admin</div>
+          <div class="nav-item" data-view="master"><span class="nav-icon">🏗️</span><span>Master Data</span></div>
+          <div class="nav-item" data-view="iam"><span class="nav-icon">🔐</span><span>IAM</span></div>
+          <div class="nav-item" data-view="notifications"><span class="nav-icon">🔔</span><span>Notifications</span>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Integrations</div>
+          <div class="nav-item" data-view="integrations"><span class="nav-icon">🔌</span><span>OMS / AMR / ERP</span>
+          </div>
+          <div class="nav-item" data-view="documents"><span class="nav-icon">📄</span><span>Documents</span></div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">System</div>
+          <div class="nav-item" data-view="operability"><span class="nav-icon">⚙️</span><span>Operability</span></div>
+          <a class="nav-item" href="/swagger" target="_blank" style="text-decoration:none">
+            <span class="nav-icon">📖</span><span>API Docs</span>
+          </a>
+        </div>
+      </nav>
+      <div style="padding:16px 20px;border-top:1px solid var(--border-default);font-size:11px;color:var(--text-muted)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div class="status-dot"></div><span>System Online</span>
+        </div>
+        <div>TMS v3.0 — OR-Tools VRP • 114 APIs</div>
+      </div>
+    </aside>
+
+    <!-- ═══ Main Content ══════════════════════════════════════ -->
+    <main class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-title" class="topbar-title">📊 Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-status">
+            <div class="status-dot"></div><span>Connected</span>
+          </div>
+          <div class="topbar-time" id="clock">—</div>
+        </div>
+      </header>
+      <div class="page-container" id="page-content">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+
+</html>

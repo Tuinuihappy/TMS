@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -66,7 +67,8 @@ public sealed record RequestOptimizationCommand(
 public sealed class RequestOptimizationHandler(
     IOptimizationRequestRepository optRepo,
     IRoutePlanRepository planRepo,
-    PdpRouteOptimizer optimizer)
+    OrToolsVrpSolver vrpSolver,
+    ILogger<RequestOptimizationHandler> logger)
     : ICommandHandler<RequestOptimizationCommand, Guid>
 {
     public async Task<Guid> Handle(RequestOptimizationCommand req, CancellationToken ct)
@@ -82,51 +84,94 @@ public sealed class RequestOptimizationHandler(
 
         try
         {
-            var routes = optimizer.Optimize(
-                req.Orders,
-                req.MaxOrdersPerRoute,
-                req.MaxCapacityKg,
-                req.MaxCapacityVolumeCBM,
-                req.DepotLat,
-                req.DepotLng,
-                req.DepartureTime);
+            // Convert PdpOrderInput → VrpOrderInput for OR-Tools solver
+            var vrpInputs = req.Orders.Select(o => new VrpOrderInput(
+                OrderId: o.OrderId,
+                PickupLat: o.PickupLat,
+                PickupLng: o.PickupLng,
+                DropoffLat: o.DropoffLat,
+                DropoffLng: o.DropoffLng,
+                WeightKg: o.WeightKg,
+                VolumeCbm: o.VolumeCBM,
+                PickupWindowFrom: o.PickupWindowFrom,
+                PickupWindowTo: o.PickupWindowTo,
+                DropoffWindowFrom: o.DropoffWindowFrom,
+                DropoffWindowTo: o.DropoffWindowTo
+            )).ToList();
 
+            // Determine number of vehicles based on total weight vs capacity
+            var totalWeightKg = vrpInputs.Sum(o => o.WeightKg);
+            var numVehicles = Math.Max(1, (int)Math.Ceiling(totalWeightKg / req.MaxCapacityKg));
+            // Also consider order count constraint
+            numVehicles = Math.Max(numVehicles, (int)Math.Ceiling(vrpInputs.Count / (double)req.MaxOrdersPerRoute));
+
+            var depotLat = req.DepotLat == 0 ? 13.7563 : req.DepotLat;  // Default: Bangkok
+            var depotLng = req.DepotLng == 0 ? 100.5018 : req.DepotLng;
+
+            logger.LogInformation(
+                "Invoking OR-Tools VRP Solver: {OrderCount} orders, {Vehicles} vehicles, capacity={CapKg}kg, depot=({Lat},{Lng})",
+                vrpInputs.Count, numVehicles, req.MaxCapacityKg, depotLat, depotLng);
+
+            // Invoke Google OR-Tools VRP Solver
+            var vrpRoutes = vrpSolver.Solve(
+                orders: vrpInputs,
+                numVehicles: numVehicles,
+                vehicleCapacityKg: req.MaxCapacityKg,
+                maxDistancePerVehicleKm: 500m,
+                timeLimitSeconds: 15,
+                depotLat: depotLat,
+                depotLng: depotLng,
+                departureTime: req.DepartureTime,
+                logger: logger);
+
+            logger.LogInformation("OR-Tools returned {RouteCount} route(s) for {OrderCount} orders.",
+                vrpRoutes.Count, vrpInputs.Count);
+
+            // Map VRP results → RoutePlans
             var plans = new List<RoutePlan>();
 
-            for (int i = 0; i < routes.Count; i++)
+            foreach (var vrpRoute in vrpRoutes)
             {
-                var route = routes[i];
                 var planNumber = await planRepo.GeneratePlanNumberAsync(ct);
                 var plan = RoutePlan.Create(planNumber, req.PlannedDate, req.TenantId, req.VehicleTypeId);
 
-                // Build stops with StopType
-                for (int seq = 0; seq < route.Count; seq++)
+                // Build stops from VRP result (already optimally ordered)
+                int seq = 1;
+                foreach (var vrpStop in vrpRoute.Stops)
                 {
-                    var pdpStop = route[seq];
                     var stop = RouteStop.Create(
-                        plan.Id, seq + 1, pdpStop.OrderId,
-                        pdpStop.StopType,
-                        pdpStop.Lat, pdpStop.Lng);
+                        plan.Id, seq++, vrpStop.OrderId,
+                        vrpStop.StopType,
+                        vrpStop.Latitude, vrpStop.Longitude,
+                        vrpStop.EstimatedArrival);
                     plan.AddStop(stop);
                 }
 
-                // Compute route metrics
-                var distKm = PdpRouteOptimizer.ComputeTotalDistanceKm(
-                    route, req.DepotLat, req.DepotLng);
-                var durationMin = PdpRouteOptimizer.EstimateDurationMin(distKm);
-                var capUtil = PdpRouteOptimizer.ComputeCapacityUtil(
-                    route, orderMap, req.MaxCapacityKg);
+                // Use metrics computed by VRP solver
+                var pickupWeight = vrpRoute.Stops
+                    .Where(s => s.StopType == "Pickup")
+                    .Sum(s => orderMap.TryGetValue(s.OrderId, out var o) ? o.WeightKg : 0);
+                var capUtil = req.MaxCapacityKg > 0
+                    ? Math.Round(pickupWeight / req.MaxCapacityKg * 100, 1)
+                    : 0m;
 
-                plan.UpdateMetrics(distKm, durationMin, capUtil);
+                plan.UpdateMetrics(vrpRoute.TotalDistanceKm, vrpRoute.EstimatedDurationMin, capUtil);
                 plans.Add(plan);
             }
 
             await planRepo.AddRangeAsync(plans, ct);
             optRequest.Complete(
-                JsonSerializer.Serialize(new { PlanCount = plans.Count }), plans);
+                JsonSerializer.Serialize(new
+                {
+                    PlanCount = plans.Count,
+                    Solver = "Google OR-Tools",
+                    TotalOrders = vrpInputs.Count,
+                    Vehicles = numVehicles
+                }), plans);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "OR-Tools optimization failed for request {Id}.", optRequest.Id);
             optRequest.Fail(ex.Message);
         }
 

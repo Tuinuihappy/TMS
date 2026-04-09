@@ -4,7 +4,6 @@
 **/.vs/
 **/.vscode/
 **/node_modules/
-**/wwwroot/
 *.md
 *.log
 docker-compose*.yml

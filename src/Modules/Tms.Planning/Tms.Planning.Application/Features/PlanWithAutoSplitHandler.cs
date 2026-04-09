@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -13,7 +14,7 @@ namespace Tms.Planning.Application.Features;
 /// Auto Planning + Auto Split รวมกัน:
 /// 1. โหลด orders ตาม OrderIds
 /// 2. ตรวจ orders ไหนเกิน capacity → auto split ก่อน (ผ่าน MediatR cross-module)
-/// 3. ส่ง child orders เข้า PDP optimizer
+/// 3. ส่ง child orders เข้า OR-Tools VRP Solver
 /// 4. สร้าง RoutePlans
 /// </summary>
 public sealed record PlanWithAutoSplitCommand(
@@ -52,7 +53,8 @@ public sealed class PlanWithAutoSplitHandler(
     ISender mediator,
     IOptimizationRequestRepository optRepo,
     IRoutePlanRepository planRepo,
-    PdpRouteOptimizer optimizer)
+    OrToolsVrpSolver vrpSolver,
+    ILogger<PlanWithAutoSplitHandler> logger)
     : ICommandHandler<PlanWithAutoSplitCommand, PlanWithSplitResult>
 {
     public async Task<PlanWithSplitResult> Handle(
@@ -105,19 +107,24 @@ public sealed class PlanWithAutoSplitHandler(
         // 3. Re-load effective orders (includes newly split children)
         var effectiveSnapshots = await orderQuery.GetOrdersByIdsAsync(effectiveOrderIds, ct);
 
-        // 4. Build PdpOrderInput list
-        var pdpInputs = effectiveSnapshots
+        // 4. Build VrpOrderInput list for OR-Tools
+        var vrpInputs = effectiveSnapshots
             .Where(s => s.PickupLat.HasValue && s.DropoffLat.HasValue)
-            .Select(s => new PdpOrderInput(
-                s.Id,
-                s.PickupLat!.Value, s.PickupLng!.Value,
-                s.DropoffLat!.Value, s.DropoffLng!.Value,
-                s.TotalWeightKg, s.TotalVolumeCBM,
-                s.PickupWindowFrom, s.PickupWindowTo,
-                s.DropoffWindowFrom, s.DropoffWindowTo))
+            .Select(s => new VrpOrderInput(
+                OrderId: s.Id,
+                PickupLat: s.PickupLat!.Value,
+                PickupLng: s.PickupLng!.Value,
+                DropoffLat: s.DropoffLat!.Value,
+                DropoffLng: s.DropoffLng!.Value,
+                WeightKg: s.TotalWeightKg,
+                VolumeCbm: s.TotalVolumeCBM,
+                PickupWindowFrom: s.PickupWindowFrom,
+                PickupWindowTo: s.PickupWindowTo,
+                DropoffWindowFrom: s.DropoffWindowFrom,
+                DropoffWindowTo: s.DropoffWindowTo))
             .ToList();
 
-        if (pdpInputs.Count == 0)
+        if (vrpInputs.Count == 0)
             throw new DomainException(
                 "No orders with valid GPS coordinates to optimize.", "NO_GEOCODED_ORDERS");
 
@@ -130,49 +137,71 @@ public sealed class PlanWithAutoSplitHandler(
 
         try
         {
-            var orderMap = pdpInputs.ToDictionary(o => o.OrderId);
+            var orderMap = vrpInputs.ToDictionary(o => o.OrderId);
 
-            var routes = optimizer.Optimize(
-                pdpInputs,
-                request.MaxOrdersPerRoute,
-                request.MaxVehicleWeightKg,
-                request.MaxVehicleVolumeCBM,
-                request.DepotLat,
-                request.DepotLng,
-                request.DepartureTime);
+            // Determine number of vehicles
+            var totalWeightKg = vrpInputs.Sum(o => o.WeightKg);
+            var numVehicles = Math.Max(1, (int)Math.Ceiling(totalWeightKg / request.MaxVehicleWeightKg));
+            numVehicles = Math.Max(numVehicles, (int)Math.Ceiling(vrpInputs.Count / (double)request.MaxOrdersPerRoute));
 
+            var depotLat = request.DepotLat == 0 ? 13.7563 : request.DepotLat;
+            var depotLng = request.DepotLng == 0 ? 100.5018 : request.DepotLng;
+
+            logger.LogInformation(
+                "PlanWithSplit: Invoking OR-Tools VRP — {Orders} orders, {Vehicles} vehicles, capacity={Cap}kg",
+                vrpInputs.Count, numVehicles, request.MaxVehicleWeightKg);
+
+            // Invoke Google OR-Tools VRP Solver
+            var vrpRoutes = vrpSolver.Solve(
+                orders: vrpInputs,
+                numVehicles: numVehicles,
+                vehicleCapacityKg: request.MaxVehicleWeightKg,
+                maxDistancePerVehicleKm: 500m,
+                timeLimitSeconds: 15,
+                depotLat: depotLat,
+                depotLng: depotLng,
+                departureTime: request.DepartureTime,
+                logger: logger);
+
+            // Map VRP results → RoutePlans
             var plans = new List<RoutePlan>();
 
-            for (int i = 0; i < routes.Count; i++)
+            foreach (var vrpRoute in vrpRoutes)
             {
-                var route = routes[i];
                 var planNumber = await planRepo.GeneratePlanNumberAsync(ct);
                 var plan = RoutePlan.Create(
                     planNumber, request.PlannedDate, request.TenantId, request.VehicleTypeId);
 
-                for (int seq = 0; seq < route.Count; seq++)
+                int seq = 1;
+                foreach (var vrpStop in vrpRoute.Stops)
                 {
-                    var pdpStop = route[seq];
                     var stop = RouteStop.Create(
-                        plan.Id, seq + 1, pdpStop.OrderId,
-                        pdpStop.StopType,
-                        pdpStop.Lat, pdpStop.Lng);
+                        plan.Id, seq++, vrpStop.OrderId,
+                        vrpStop.StopType,
+                        vrpStop.Latitude, vrpStop.Longitude,
+                        vrpStop.EstimatedArrival);
                     plan.AddStop(stop);
                 }
 
-                var distKm = PdpRouteOptimizer.ComputeTotalDistanceKm(
-                    route, request.DepotLat, request.DepotLng);
-                var durationMin = PdpRouteOptimizer.EstimateDurationMin(distKm);
-                var capUtil = PdpRouteOptimizer.ComputeCapacityUtil(
-                    route, orderMap, request.MaxVehicleWeightKg);
+                var pickupWeight = vrpRoute.Stops
+                    .Where(s => s.StopType == "Pickup")
+                    .Sum(s => orderMap.TryGetValue(s.OrderId, out var o) ? o.WeightKg : 0);
+                var capUtil = request.MaxVehicleWeightKg > 0
+                    ? Math.Round(pickupWeight / request.MaxVehicleWeightKg * 100, 1)
+                    : 0m;
 
-                plan.UpdateMetrics(distKm, durationMin, capUtil);
+                plan.UpdateMetrics(vrpRoute.TotalDistanceKm, vrpRoute.EstimatedDurationMin, capUtil);
                 plans.Add(plan);
             }
 
             await planRepo.AddRangeAsync(plans, ct);
             optRequest.Complete(
-                System.Text.Json.JsonSerializer.Serialize(new { PlanCount = plans.Count }),
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    PlanCount = plans.Count,
+                    Solver = "Google OR-Tools",
+                    SplitsPerformed = splitsPerformed.Count
+                }),
                 plans);
 
             await optRepo.UpdateAsync(optRequest, ct);
@@ -181,6 +210,7 @@ public sealed class PlanWithAutoSplitHandler(
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "PlanWithSplit OR-Tools optimization failed.");
             optRequest.Fail(ex.Message);
             await optRepo.UpdateAsync(optRequest, ct);
             throw;
