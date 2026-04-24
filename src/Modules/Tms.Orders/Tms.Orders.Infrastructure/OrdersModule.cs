@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Distributed;
+using Tms.Orders.Application;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Application.Features.GetOrders;
 using Tms.Orders.Domain.Interfaces;
@@ -32,8 +34,16 @@ public static class OrdersModule
         // Read services (CQRS read side — LINQ projection, no entity tracking)
         services.AddScoped<IOrderReadService, OrderReadService>();
 
+        // Cache invalidator — called by handlers that mutate Orders
+        services.AddScoped<IOrderCacheInvalidator, OrderCacheInvalidator>();
+
         // Cross-module query service — Planning ใช้อ่าน Order data
-        services.AddScoped<IOrderQueryService, OrderQueryService>();
+        // CachedOrderQueryService decorates OrderQueryService with Redis cache (5-min TTL)
+        services.AddScoped<OrderQueryService>();
+        services.AddScoped<IOrderQueryService>(sp =>
+            new CachedOrderQueryService(
+                sp.GetRequiredService<OrderQueryService>(),
+                sp.GetRequiredService<IDistributedCache>()));
 
         // MediatR handlers — Infrastructure + Application assemblies
         services.AddMediatR(cfg =>

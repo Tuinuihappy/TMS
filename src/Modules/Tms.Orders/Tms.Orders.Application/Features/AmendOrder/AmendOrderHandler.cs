@@ -9,6 +9,7 @@ using Tms.SharedKernel.IntegrationEvents;
 
 namespace Tms.Orders.Application.Features.AmendOrder;
 
+
 public sealed record AmendOrderRequest(
     AddressDto? PickupAddress = null,
     AddressDto? DropoffAddress = null,
@@ -21,7 +22,10 @@ public sealed record AmendOrderCommand(
     Guid OrderId,
     AmendOrderRequest Request) : ICommand;
 
-public sealed class AmendOrderHandler(IOrderRepository orderRepository, IOutboxWriter outbox)
+public sealed class AmendOrderHandler(
+    IOrderRepository orderRepository,
+    IOutboxWriter outbox,
+    IOrderCacheInvalidator cacheInvalidator)
     : ICommandHandler<AmendOrderCommand>
 {
     public async Task Handle(AmendOrderCommand request, CancellationToken cancellationToken)
@@ -68,5 +72,9 @@ public sealed class AmendOrderHandler(IOrderRepository orderRepository, IOutboxW
         outbox.Stage(new OrderAmendedIntegrationEvent(order.Id, order.OrderNumber, changes));
 
         await orderRepository.UpdateAsync(order, cancellationToken);
+
+        // Invalidate cached OrderSnapshot so Planning module gets fresh data
+        // on the next OrderAmendedIntegrationEvent handling
+        await cacheInvalidator.InvalidateAsync(order.Id, cancellationToken);
     }
 }

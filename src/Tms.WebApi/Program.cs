@@ -34,6 +34,10 @@ builder.Services
     .AddIntegrationModule(builder.Configuration)
     .AddDocumentsModule(builder.Configuration);
 
+// ──── Redis Distributed Cache ─────────────────────────────────
+builder.Services.AddStackExchangeRedisCache(options =>
+    options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+
 // ──── Idempotency DbContext (shared "idm" schema) ────────────
 builder.Services.AddDbContext<IdempotencyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDb")));
