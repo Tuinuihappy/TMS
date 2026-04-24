@@ -38,7 +38,7 @@ public sealed class OrderConfirmedIntegrationEventHandler(
             dropoffLat: notification.DropoffLatitude,
             dropoffLng: notification.DropoffLongitude,
             weight: notification.TotalWeight,
-            volume: notification.TotalVolume,
+            volume: notification.TotalVolumeCBM,
             readyTime: notification.ReadyTime,
             dueTime: notification.DueTime
         );

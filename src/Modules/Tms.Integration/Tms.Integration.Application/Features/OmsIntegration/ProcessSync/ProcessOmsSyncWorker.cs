@@ -58,15 +58,15 @@ public sealed class ProcessOmsSyncWorker(
 
                 // ACL: แปลง raw → CreateOrderCommand
                 var mappedJson = sync.RawPayload; // ใช้ raw ส่งตรงใน MVP
-                var command = mapper.Map(sync.RawPayload, mappings);
+                var command = mapper.Map(sync.RawPayload, mappings, sync.TenantId);
 
                 sync.MarkProcessing(mappedJson);
                 await repo.UpdateAsync(sync, ct);
 
                 // เรียก Tms.Orders ผ่าน MediatR (In-Process)
-                var orderId = await sender.Send(command, ct);
+                var response = await sender.Send(command, ct);
 
-                sync.MarkSucceeded(orderId);
+                sync.MarkSucceeded(response.Id);
                 await repo.UpdateAsync(sync, ct);
 
                 // Publish event ให้ Module อื่น (Planning, Notification) รับรู้
@@ -74,11 +74,11 @@ public sealed class ProcessOmsSyncWorker(
                     SyncId: sync.Id,
                     ExternalOrderRef: sync.ExternalOrderRef,
                     OmsProviderCode: sync.OmsProviderCode,
-                    TmsOrderId: orderId,
-                    OrderNumber: $"ORD-OMS-{sync.ExternalOrderRef[..Math.Min(8, sync.ExternalOrderRef.Length)]}"
+                    TmsOrderId: response.Id,
+                    OrderNumber: response.OrderNumber
                 ), ct);
 
-                logger.LogInformation("OMS sync {SyncId} succeeded. TMS Order: {OrderId}", sync.Id, orderId);
+                logger.LogInformation("OMS sync {SyncId} succeeded. TMS Order: {OrderId}", sync.Id, response.Id);
             }
             catch (Exception ex)
             {

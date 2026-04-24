@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Tms.Orders.Domain.Entities;
 using Tms.Orders.Domain.Interfaces;
@@ -26,7 +27,12 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
         var query = context.TransportOrders.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
-            query = query.Where(o => o.Status.ToString() == status);
+        {
+            if (Enum.TryParse<Domain.Enums.OrderStatus>(status, ignoreCase: true, out var parsedStatus))
+                query = query.Where(o => o.Status == parsedStatus);
+            else
+                return ([], 0);
+        }
 
         if (customerId.HasValue)
             query = query.Where(o => o.CustomerId == customerId.Value);
@@ -60,32 +66,34 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
 
     public async Task<string> GenerateOrderNumberAsync(CancellationToken cancellationToken = default)
     {
-        var today = DateTime.UtcNow;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var prefix = $"ORD-{today:yyyyMMdd}";
-        var count = await context.TransportOrders
-            .CountAsync(o => o.OrderNumber.StartsWith(prefix), cancellationToken);
-        return $"{prefix}-{(count + 1):D4}";
-    }
 
-    // ── Split Order ──────────────────────────────────────────────────────────
+        var conn = context.Database.GetDbConnection();
+        var needsOpen = conn.State != ConnectionState.Open;
+        if (needsOpen) await conn.OpenAsync(cancellationToken);
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO ord."OrderDailyCounters" ("Date", "LastSequence")
+                VALUES (@date, 1)
+                ON CONFLICT ("Date") DO UPDATE
+                SET "LastSequence" = ord."OrderDailyCounters"."LastSequence" + 1
+                RETURNING "LastSequence"
+                """;
+            var p = cmd.CreateParameter();
+            p.ParameterName = "date";
+            p.Value = today;
+            cmd.Parameters.Add(p);
 
-    /// <summary>บันทึก child orders หลายใบ (ไม่ SaveChanges — caller จัดการ)</summary>
-    public async Task AddRangeAsync(
-        IEnumerable<TransportOrder> orders,
-        CancellationToken cancellationToken = default)
-    {
-        await context.TransportOrders.AddRangeAsync(orders, cancellationToken);
-        // SaveChanges จะถูกเรียกโดย caller (UpdateAsync parent) เพื่อ atomic
-    }
-
-    public async Task<IReadOnlyList<TransportOrder>> GetChildOrdersAsync(
-        Guid parentOrderId,
-        CancellationToken cancellationToken = default)
-    {
-        return await context.TransportOrders
-            .Where(o => o.ParentOrderId == parentOrderId)
-            .OrderBy(o => o.CreatedAt)
-            .ToListAsync(cancellationToken);
+            var seq = (int)(await cmd.ExecuteScalarAsync(cancellationToken))!;
+            return $"{prefix}-{seq:D4}";
+        }
+        finally
+        {
+            if (needsOpen) await conn.CloseAsync();
+        }
     }
 
     public async Task<IReadOnlyList<TransportOrder>> GetByIdsAsync(

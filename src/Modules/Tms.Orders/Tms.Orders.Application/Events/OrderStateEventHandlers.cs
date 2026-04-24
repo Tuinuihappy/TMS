@@ -14,21 +14,26 @@ public sealed class TripDispatchedOrderHandler(IOrderRepository repo)
 {
     public async Task Handle(TripDispatchedIntegrationEvent ev, CancellationToken ct)
     {
-        var orderIds = ev.Stops.Select(s => s.OrderId).Distinct();
-        foreach (var orderId in orderIds)
-        {
-            var order = await repo.GetByIdAsync(orderId, ct);
-            if (order is null) continue;
+        var orderIds = ev.Stops.Select(s => s.OrderId).Distinct().ToList();
 
-            // Confirmed → auto plan then start transit (skip manual planning for auto-dispatched trips)
+        // 1 query to load all orders
+        var orders = await repo.GetByIdsAsync(orderIds, ct);
+
+        TransportOrder? lastUpdated = null;
+        foreach (var order in orders)
+        {
             if (order.Status == Domain.Enums.OrderStatus.Confirmed)
                 order.MarkAsPlanned();
 
             if (order.Status == Domain.Enums.OrderStatus.Planned)
                 order.MarkAsInTransit();
 
-            await repo.UpdateAsync(order, ct);
+            lastUpdated = order;
         }
+
+        // 1 SaveChanges for all orders
+        if (lastUpdated is not null)
+            await repo.UpdateAsync(lastUpdated, ct);
     }
 }
 
@@ -62,9 +67,21 @@ public sealed class TripCancelledOrderHandler(IOrderRepository repo)
 {
     public async Task Handle(TripCancelledIntegrationEvent ev, CancellationToken ct)
     {
-        // TripCancelledIntegrationEvent does not carry OrderIds directly
-        // → handled at Shipment level; Order stays InTransit until re-planned
-        // This handler is intentionally a no-op for now — future: re-queue for re-planning
-        await Task.CompletedTask;
+        var orderIds = ev.Stops.Select(s => s.OrderId).Distinct().ToList();
+        var orders = await repo.GetByIdsAsync(orderIds, ct);
+
+        TransportOrder? lastUpdated = null;
+        foreach (var order in orders)
+        {
+            if (order.Status is Domain.Enums.OrderStatus.Planned
+                             or Domain.Enums.OrderStatus.InTransit)
+            {
+                order.RevertToConfirmed();
+                lastUpdated = order;
+            }
+        }
+
+        if (lastUpdated is not null)
+            await repo.UpdateAsync(lastUpdated, ct);
     }
 }

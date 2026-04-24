@@ -18,8 +18,7 @@ namespace Tms.WebApi.Infrastructure;
 /// </summary>
 public sealed class TenantContextMiddleware(
     RequestDelegate next,
-    IConfiguration configuration,
-    ILogger<TenantContextMiddleware> logger)
+    IConfiguration configuration)
 {
     // Well-known dev defaults — seeded by DatabaseSeeder
     private static readonly Guid DevUserId   = Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -76,7 +75,7 @@ public sealed class TenantContextMiddleware(
         holder.UserId        = Guid.TryParse(userId, out var uid)    ? uid : DevUserId;
         holder.TenantId      = Guid.TryParse(tenantId, out var tid)  ? tid : DevTenantId;
         holder.Username      = username;
-        holder.Roles         = ["Admin", "Dispatcher", "Driver"]; // grant all roles in dev
+        holder.Roles         = ["Admin", "Planner", "Dispatcher", "Driver", "Finance", "Customer"]; // grant all roles in dev
         holder.IsAuthenticated = true;
     }
 }

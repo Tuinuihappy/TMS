@@ -14,7 +14,7 @@ public sealed class OmsAclMapper
     /// แปลง Raw OMS payload เป็น CreateOrderCommand โดยใช้ Field Mappings.
     /// หาก mapping ไม่ครบ throws InvalidOperationException พร้อมชื่อ field ที่หายไป.
     /// </summary>
-    public CreateOrderCommand Map(string rawPayload, IList<OmsFieldMapping> mappings)
+    public CreateOrderCommand Map(string rawPayload, IList<OmsFieldMapping> mappings, Guid tenantId = default)
     {
         using var doc = JsonDocument.Parse(rawPayload);
         var root = doc.RootElement;
@@ -88,6 +88,7 @@ public sealed class OmsAclMapper
 
         return new CreateOrderCommand(
             CustomerId: customerId,
+            TenantId: tenantId,
             OrderNumber: null,       // TMS generate เอง
             PickupAddress: pickupAddress,
             DropoffAddress: dropoffAddress,

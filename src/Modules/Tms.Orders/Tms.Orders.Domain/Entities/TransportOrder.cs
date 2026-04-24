@@ -16,6 +16,7 @@ public sealed class TransportOrder : AggregateRoot
     public Address DropoffAddress { get; private set; } = null!;
     public TimeWindow? PickupWindow { get; private set; }
     public TimeWindow? DropoffWindow { get; private set; }
+    public Guid TenantId { get; private set; }
     public string? Notes { get; private set; }
     public string? CancelReason { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -23,19 +24,11 @@ public sealed class TransportOrder : AggregateRoot
     public DateTime? UpdatedAt { get; private set; }
     public DateTime? ConfirmedAt { get; private set; }
 
-    // ── Split Order Fields ────────────────────────────────────────────────────
-    /// <summary>ชี้ไปยัง Order ต้นสาย — null ถ้าเป็น original order</summary>
-    public Guid? ParentOrderId { get; private set; }
-    /// <summary>เหตุผลที่ Split: "Manual" | "CapacityExceeded" | "RouteConstraint"</summary>
-    public string? SplitReason { get; private set; }
-    /// <summary>true ถ้าเป็น child order ที่ถูก split ออกมาจาก parent</summary>
-    public bool IsSplitChild => ParentOrderId.HasValue;
-
     private readonly List<OrderItem> _items = [];
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
-    public decimal TotalWeight => _items.Sum(i => i.Weight * i.Quantity);
-    public decimal TotalVolume => _items.Sum(i => i.Volume * i.Quantity);
+    public decimal TotalWeight => _items.Sum(i => i.Weight.ToKg() * i.Quantity);
+    public decimal TotalVolumeCBM => _items.Sum(i => i.VolumeCBM * i.Quantity);
 
     private TransportOrder() { }  // EF Core
 
@@ -49,14 +42,21 @@ public sealed class TransportOrder : AggregateRoot
         OrderPriority priority = OrderPriority.Normal,
         TimeWindow? pickupWindow = null,
         TimeWindow? dropoffWindow = null,
-        string? notes = null)
+        string? notes = null,
+        Guid tenantId = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
+
+        if (pickupWindow is not null && dropoffWindow is not null &&
+            dropoffWindow.From <= pickupWindow.From)
+            throw new DomainException(
+                "Dropoff window must start after pickup window.", "INVALID_TIME_WINDOWS");
 
         var order = new TransportOrder
         {
             OrderNumber = orderNumber,
             CustomerId = customerId,
+            TenantId = tenantId,
             Status = OrderStatus.Draft,
             Priority = priority,
             PickupAddress = pickupAddress,
@@ -80,48 +80,13 @@ public sealed class TransportOrder : AggregateRoot
         OrderPriority priority = OrderPriority.Normal,
         TimeWindow? pickupWindow = null,
         TimeWindow? dropoffWindow = null,
-        string? notes = null)
+        string? notes = null,
+        Guid tenantId = default)
     {
         var order = Create(orderNumber, customerId, pickupAddress, dropoffAddress,
-            priority, pickupWindow, dropoffWindow, notes);
+            priority, pickupWindow, dropoffWindow, notes, tenantId);
         order.CreatedBy = createdBy;
         return order;
-    }
-
-    /// <summary>
-    /// สร้าง child order จาก parent — inherit pickup/dropoff address จาก parent โดย default.
-    /// Manual split สามารถ override dropoffAddress และ dropoffWindow ได้
-    /// </summary>
-    public static TransportOrder CreateSplitChild(
-        string childOrderNumber,
-        TransportOrder parent,
-        string splitReason,
-        Address? overrideDropoffAddress = null,
-        TimeWindow? overrideDropoffWindow = null,
-        string? notes = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(childOrderNumber);
-        ArgumentNullException.ThrowIfNull(parent);
-
-        var child = new TransportOrder
-        {
-            OrderNumber = childOrderNumber,
-            CustomerId = parent.CustomerId,
-            Status = OrderStatus.Draft,
-            Priority = parent.Priority,
-            PickupAddress = parent.PickupAddress,
-            DropoffAddress = overrideDropoffAddress ?? parent.DropoffAddress,
-            PickupWindow = parent.PickupWindow,
-            DropoffWindow = overrideDropoffWindow ?? parent.DropoffWindow,
-            Notes = notes ?? $"Split from {parent.OrderNumber}",
-            ParentOrderId = parent.Id,
-            SplitReason = splitReason,
-            CreatedBy = parent.CreatedBy,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        child.AddDomainEvent(new OrderCreatedEvent(child.Id, child.OrderNumber, child.CustomerId));
-        return child;
     }
 
     // ── Mutations ─────────────────────────────────────────────────────────────
@@ -133,15 +98,6 @@ public sealed class TransportOrder : AggregateRoot
 
         _items.Add(item);
         UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// เพิ่ม Item โดยไม่ตรวจ Status — ใช้สำหรับสร้าง Split Child orders
-    /// (bypass Draft check ที่ AddItem ปกติมี)
-    /// </summary>
-    public void AddItemInternal(OrderItem item)
-    {
-        _items.Add(item);
     }
 
     public void Confirm()
@@ -159,34 +115,24 @@ public sealed class TransportOrder : AggregateRoot
 
     public void Cancel(string reason)
     {
-        if (Status is OrderStatus.Completed or OrderStatus.Cancelled)
-            throw new DomainException($"Cannot cancel an order with status '{Status}'.", "ORDER_CANNOT_CANCEL");
+        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+            throw new DomainException($"Cannot cancel an order with status '{Status}'. Only Draft or Confirmed orders can be cancelled.", "ORDER_CANNOT_CANCEL");
 
         Status = OrderStatus.Cancelled;
         CancelReason = reason;
-        Notes = string.IsNullOrWhiteSpace(Notes) ? reason : $"{Notes} | Cancel reason: {reason}";
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new OrderCancelledEvent(Id, OrderNumber, reason));
     }
 
-    /// <summary>
-    /// Mark parent order ว่าถูก Split บางส่วนออกเป็น child orders.
-    /// Status เปลี่ยนเป็น PartialSplit — ยัง Active แต่ plan ผ่าน child เท่านั้น
-    /// </summary>
-    public void MarkAsSplit(string splitReason, List<Guid> childOrderIds, string splitMode)
+    public void RevertToConfirmed()
     {
-        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+        if (Status is not (OrderStatus.Planned or OrderStatus.InTransit))
             throw new DomainException(
-                $"Cannot split order with status '{Status}'. Only Draft or Confirmed orders can be split.",
-                "ORDER_CANNOT_SPLIT");
+                $"Cannot revert order with status '{Status}' to Confirmed.",
+                "ORDER_CANNOT_REVERT");
 
-        if (childOrderIds.Count < 2)
-            throw new DomainException("Split must produce at least 2 child orders.", "SPLIT_INSUFFICIENT_CHILDREN");
-
-        SplitReason = splitReason;
-        Status = OrderStatus.PartialSplit;
+        Status = OrderStatus.Confirmed;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new OrderSplitEvent(Id, OrderNumber, childOrderIds, splitMode));
     }
 
     public void MarkAsPlanned()
@@ -236,6 +182,9 @@ public sealed class TransportOrder : AggregateRoot
         if (newDropoffWindow is not null) DropoffWindow = newDropoffWindow;
         if (newNotes is not null) Notes = newNotes;
         if (newPriority.HasValue) Priority = newPriority.Value;
+
+        if (Status == OrderStatus.Confirmed)
+            Status = OrderStatus.Draft;
 
         UpdatedAt = DateTime.UtcNow;
         AddDomainEvent(new OrderAmendedEvent(Id, OrderNumber));

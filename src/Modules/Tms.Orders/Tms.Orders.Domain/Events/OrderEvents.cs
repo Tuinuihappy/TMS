@@ -37,15 +37,3 @@ public sealed record OrderAmendedEvent(
     public DateTime OccurredAt { get; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// เอนต์เมื่อ Order ถูก Split ออกเป็น child orders (Manual หรือ Auto)
-/// </summary>
-public sealed record OrderSplitEvent(
-    Guid ParentOrderId,
-    string ParentOrderNumber,
-    List<Guid> ChildOrderIds,
-    string SplitMode) : IDomainEvent   // "Manual" | "Auto"
-{
-    public Guid EventId { get; } = Guid.NewGuid();
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
-}

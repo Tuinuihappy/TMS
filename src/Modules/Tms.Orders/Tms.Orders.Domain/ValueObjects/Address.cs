@@ -9,18 +9,21 @@ public sealed record Address(
     string Province,
     string PostalCode,
     double? Latitude = null,
-    double? Longitude = null)
+    double? Longitude = null,
+    string? Name = null)
 {
     public static Address Create(
         string street, string subDistrict, string district,
         string province, string postalCode,
-        double? latitude = null, double? longitude = null)
+        double? latitude = null, double? longitude = null,
+        string? name = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(street);
         ArgumentException.ThrowIfNullOrWhiteSpace(province);
-        return new Address(street, subDistrict, district, province, postalCode, latitude, longitude);
+        return new Address(street, subDistrict, district, province, postalCode, latitude, longitude, name);
     }
 
     public override string ToString() =>
-        $"{Street}, {SubDistrict}, {District}, {Province} {PostalCode}";
+        string.IsNullOrWhiteSpace(Name)
+            ? $"{Street}, {District}, {Province} {PostalCode}"
+            : $"{Name} — {Street}, {District}, {Province} {PostalCode}";
 }

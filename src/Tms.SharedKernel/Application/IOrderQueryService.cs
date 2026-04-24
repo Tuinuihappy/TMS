@@ -18,8 +18,6 @@ public sealed record OrderSnapshot(
     Guid Id,
     string OrderNumber,
     string Status,
-    bool IsSplitChild,
-    Guid? ParentOrderId,
     double? PickupLat,
     double? PickupLng,
     double? DropoffLat,

@@ -185,9 +185,14 @@ public sealed class CancelTripHandler(
         var trip = await repo.GetByIdAsync(request.TripId, ct)
             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
+        var stops = trip.Stops.Select(s => new TripStopSnapshot(
+            s.Id, s.Sequence, s.OrderId, s.Type.ToString(),
+            s.AddressName, s.AddressStreet, s.AddressProvince,
+            s.AddressLatitude, s.AddressLongitude)).ToList();
+
         trip.Cancel(request.Reason);
         outbox.Stage(new TripCancelledIntegrationEvent(
-            trip.Id, trip.TripNumber, request.Reason,
+            trip.Id, trip.TripNumber, request.Reason, stops,
             trip.VehicleId, trip.DriverId));
 
         await repo.UpdateAsync(trip, ct);

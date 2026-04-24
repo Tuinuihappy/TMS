@@ -14,7 +14,8 @@ namespace Tms.Orders.Application.Features.ImportOrder;
 
 public sealed record ImportOrdersCommand(
     Stream FileStream,
-    string FileName) : ICommand<ImportOrdersResult>;
+    string FileName,
+    Guid TenantId = default) : ICommand<ImportOrdersResult>;
 
 public sealed record ImportOrdersResult(
     int TotalRows,
@@ -31,13 +32,17 @@ public sealed class ImportOrderRow
     public string? CustomerCode { get; set; }
     public Guid CustomerId { get; set; }
     public string? Priority { get; set; }
+    public string? PickupName { get; set; }
     public string? PickupStreet { get; set; }
+    public string? PickupSubDistrict { get; set; }
     public string? PickupDistrict { get; set; }
     public string? PickupProvince { get; set; }
     public string? PickupPostalCode { get; set; }
     public double? PickupLatitude { get; set; }
     public double? PickupLongitude { get; set; }
+    public string? DropoffName { get; set; }
     public string? DropoffStreet { get; set; }
+    public string? DropoffSubDistrict { get; set; }
     public string? DropoffDistrict { get; set; }
     public string? DropoffProvince { get; set; }
     public string? DropoffPostalCode { get; set; }
@@ -73,7 +78,7 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
             try
             {
                 var row = rows[i];
-                await CreateOrderFromRow(row, ct);
+                await CreateOrderFromRow(row, request.TenantId, ct);
                 successCount++;
             }
             catch (Exception ex)
@@ -85,7 +90,7 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         return new ImportOrdersResult(rows.Count, successCount, errors.Count, errors);
     }
 
-    private async Task CreateOrderFromRow(ImportOrderRow row, CancellationToken ct)
+    private async Task CreateOrderFromRow(ImportOrderRow row, Guid tenantId, CancellationToken ct)
     {
         if (row.CustomerId == Guid.Empty)
             throw new ArgumentException("CustomerId is required.");
@@ -95,24 +100,24 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         var orderNumber = await orderRepository.GenerateOrderNumberAsync(ct);
 
         var pickup = Address.Create(
-            row.PickupStreet ?? "", "", row.PickupDistrict ?? "",
+            row.PickupStreet ?? "", row.PickupSubDistrict ?? "", row.PickupDistrict ?? "",
             row.PickupProvince ?? "", row.PickupPostalCode ?? "",
-            row.PickupLatitude, row.PickupLongitude);
+            row.PickupLatitude, row.PickupLongitude, row.PickupName);
 
         var dropoff = Address.Create(
-            row.DropoffStreet ?? "", "", row.DropoffDistrict ?? "",
+            row.DropoffStreet ?? "", row.DropoffSubDistrict ?? "", row.DropoffDistrict ?? "",
             row.DropoffProvince ?? "", row.DropoffPostalCode ?? "",
-            row.DropoffLatitude, row.DropoffLongitude);
+            row.DropoffLatitude, row.DropoffLongitude, row.DropoffName);
 
         var priority = Enum.TryParse<OrderPriority>(row.Priority, true, out var p)
             ? p : OrderPriority.Normal;
 
         var order = TransportOrder.Create(
-            orderNumber, row.CustomerId, pickup, dropoff, priority);
+            orderNumber, row.CustomerId, pickup, dropoff, priority, tenantId: tenantId);
 
         var item = OrderItem.Create(
             order.Id, row.ItemDescription!,
-            row.WeightKg, row.VolumeCBM, row.Quantity);
+            weightKg: row.WeightKg, volumeCbm: row.VolumeCBM, quantity: row.Quantity);
         order.AddItem(item);
 
         await orderRepository.AddAsync(order, ct);
@@ -164,13 +169,17 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
                 CustomerCode = GetCell(xlRow, headers, "CustomerCode"),
                 CustomerId = Guid.TryParse(GetCell(xlRow, headers, "CustomerId"), out var cid) ? cid : Guid.Empty,
                 Priority = GetCell(xlRow, headers, "Priority"),
+                PickupName = GetCell(xlRow, headers, "PickupName"),
                 PickupStreet = GetCell(xlRow, headers, "PickupStreet"),
+                PickupSubDistrict = GetCell(xlRow, headers, "PickupSubDistrict"),
                 PickupDistrict = GetCell(xlRow, headers, "PickupDistrict"),
                 PickupProvince = GetCell(xlRow, headers, "PickupProvince"),
                 PickupPostalCode = GetCell(xlRow, headers, "PickupPostalCode"),
                 PickupLatitude = double.TryParse(GetCell(xlRow, headers, "PickupLatitude"), out var plat) ? plat : null,
                 PickupLongitude = double.TryParse(GetCell(xlRow, headers, "PickupLongitude"), out var plng) ? plng : null,
+                DropoffName = GetCell(xlRow, headers, "DropoffName"),
                 DropoffStreet = GetCell(xlRow, headers, "DropoffStreet"),
+                DropoffSubDistrict = GetCell(xlRow, headers, "DropoffSubDistrict"),
                 DropoffDistrict = GetCell(xlRow, headers, "DropoffDistrict"),
                 DropoffProvince = GetCell(xlRow, headers, "DropoffProvince"),
                 DropoffPostalCode = GetCell(xlRow, headers, "DropoffPostalCode"),

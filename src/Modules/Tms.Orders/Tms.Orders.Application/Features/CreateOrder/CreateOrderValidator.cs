@@ -20,7 +20,7 @@ public sealed class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
         RuleForEach(x => x.Items).ChildRules(item =>
         {
             item.RuleFor(i => i.Description).NotEmpty();
-            item.RuleFor(i => i.Weight).GreaterThan(0).WithMessage("Weight must be greater than 0.");
+            item.RuleFor(i => i.WeightKg).GreaterThan(0).WithMessage("Weight must be greater than 0.");
             item.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("Quantity must be greater than 0.");
         });
 

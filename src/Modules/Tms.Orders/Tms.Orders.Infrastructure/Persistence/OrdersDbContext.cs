@@ -22,7 +22,7 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
         {
             var versionProp = entityType.FindProperty("Version");
             if (versionProp is not null)
-                versionProp.IsConcurrencyToken = false;
+                versionProp.IsConcurrencyToken = true;
         }
 
         modelBuilder.Entity<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>().ToTable("OutboxMessages", "ord");
@@ -31,6 +31,12 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        foreach (var entry in ChangeTracker.Entries<Tms.SharedKernel.Domain.AggregateRoot>()
+            .Where(e => e.State == EntityState.Modified))
+        {
+            entry.Entity.IncrementVersion();
+        }
+
         DomainEventDispatcher.StoreDomainEventsInOutbox(this);
         return await base.SaveChangesAsync(cancellationToken);
     }

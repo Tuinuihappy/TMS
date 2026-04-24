@@ -24,58 +24,42 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
             .HasConversion<string>()
             .HasMaxLength(20);
 
-        // ── Split Order fields ─────────────────────────────────────────────
-        builder.Property(x => x.ParentOrderId)
-            .IsRequired(false);
-
-        builder.Property(x => x.SplitReason)
-            .HasMaxLength(200)
-            .IsRequired(false);
-
-        builder.Ignore(x => x.IsSplitChild); // computed property
-
-        // Self-referencing FK: child.ParentOrderId -> parent.Id
-        builder.HasOne<TransportOrder>()
-            .WithMany()
-            .HasForeignKey(x => x.ParentOrderId)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(x => x.ParentOrderId); // query children efficiently
-        // ───────────────────────────────────────────────────────────────
+        builder.Property(x => x.TenantId).IsRequired();
 
         builder.OwnsOne(x => x.PickupAddress, a =>
         {
-            a.Property(p => p.Street).HasColumnName("PickupStreet").HasMaxLength(200);
-            a.Property(p => p.SubDistrict).HasColumnName("PickupSubDistrict").HasMaxLength(100);
-            a.Property(p => p.District).HasColumnName("PickupDistrict").HasMaxLength(100);
-            a.Property(p => p.Province).HasColumnName("PickupProvince").HasMaxLength(100);
-            a.Property(p => p.PostalCode).HasColumnName("PickupPostalCode").HasMaxLength(10);
-            a.Property(p => p.Latitude).HasColumnName("PickupLat");
-            a.Property(p => p.Longitude).HasColumnName("PickupLng");
+            a.Property(p => p.Name).HasColumnName("PickupAddress_Name").HasMaxLength(200);
+            a.Property(p => p.Street).HasColumnName("PickupAddress_Street").HasMaxLength(200);
+            a.Property(p => p.SubDistrict).HasColumnName("PickupAddress_SubDistrict").HasMaxLength(100);
+            a.Property(p => p.District).HasColumnName("PickupAddress_District").HasMaxLength(100);
+            a.Property(p => p.Province).HasColumnName("PickupAddress_Province").HasMaxLength(100);
+            a.Property(p => p.PostalCode).HasColumnName("PickupAddress_PostalCode").HasMaxLength(10);
+            a.Property(p => p.Latitude).HasColumnName("PickupAddress_Latitude");
+            a.Property(p => p.Longitude).HasColumnName("PickupAddress_Longitude");
         });
 
         builder.OwnsOne(x => x.DropoffAddress, a =>
         {
-            a.Property(p => p.Street).HasColumnName("DropoffStreet").HasMaxLength(200);
-            a.Property(p => p.SubDistrict).HasColumnName("DropoffSubDistrict").HasMaxLength(100);
-            a.Property(p => p.District).HasColumnName("DropoffDistrict").HasMaxLength(100);
-            a.Property(p => p.Province).HasColumnName("DropoffProvince").HasMaxLength(100);
-            a.Property(p => p.PostalCode).HasColumnName("DropoffPostalCode").HasMaxLength(10);
-            a.Property(p => p.Latitude).HasColumnName("DropoffLat");
-            a.Property(p => p.Longitude).HasColumnName("DropoffLng");
+            a.Property(p => p.Name).HasColumnName("DropoffAddress_Name").HasMaxLength(200);
+            a.Property(p => p.Street).HasColumnName("DropoffAddress_Street").HasMaxLength(200);
+            a.Property(p => p.SubDistrict).HasColumnName("DropoffAddress_SubDistrict").HasMaxLength(100);
+            a.Property(p => p.District).HasColumnName("DropoffAddress_District").HasMaxLength(100);
+            a.Property(p => p.Province).HasColumnName("DropoffAddress_Province").HasMaxLength(100);
+            a.Property(p => p.PostalCode).HasColumnName("DropoffAddress_PostalCode").HasMaxLength(10);
+            a.Property(p => p.Latitude).HasColumnName("DropoffAddress_Latitude");
+            a.Property(p => p.Longitude).HasColumnName("DropoffAddress_Longitude");
         });
 
         builder.OwnsOne(x => x.PickupWindow, w =>
         {
-            w.Property(p => p.From).HasColumnName("PickupFrom");
-            w.Property(p => p.To).HasColumnName("PickupTo");
+            w.Property(p => p.From).HasColumnName("PickupWindowFrom");
+            w.Property(p => p.To).HasColumnName("PickupWindowTo");
         });
 
         builder.OwnsOne(x => x.DropoffWindow, w =>
         {
-            w.Property(p => p.From).HasColumnName("DropoffFrom");
-            w.Property(p => p.To).HasColumnName("DropoffTo");
+            w.Property(p => p.From).HasColumnName("DropoffWindowFrom");
+            w.Property(p => p.To).HasColumnName("DropoffWindowTo");
         });
 
         builder.HasMany<OrderItem>(o => o.Items)
@@ -90,7 +74,6 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
     }
 }
 
-
 public sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 {
     public void Configure(EntityTypeBuilder<OrderItem> builder)
@@ -98,7 +81,16 @@ public sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.ToTable("OrderItems");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
-        builder.Property(x => x.Weight).HasPrecision(10, 3);
-        builder.Property(x => x.Volume).HasPrecision(10, 3);
+
+        builder.OwnsOne(x => x.Weight, w =>
+        {
+            w.Property(p => p.Value).HasColumnName("WeightKg").HasPrecision(10, 3);
+            w.Property(p => p.Unit)
+                .HasConversion<string>()
+                .HasColumnName("WeightUnit")
+                .HasMaxLength(5);
+        });
+
+        builder.Property(x => x.VolumeCBM).HasPrecision(10, 3);
     }
 }

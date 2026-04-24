@@ -4,7 +4,7 @@ using Tms.Orders.Application.Features.CancelOrder;
 using Tms.Orders.Application.Features.ConfirmOrder;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Application.Features.GetOrders;
-using Tms.Orders.Application.Features.SplitOrder;
+using Tms.SharedKernel.Application;
 
 namespace Tms.WebApi.Endpoints;
 
@@ -14,7 +14,7 @@ public static class OrderEndpoints
     {
         var group = app.MapGroup("/api/orders").WithTags("Orders");
 
-        // GET /api/orders
+        // GET /api/orders — Admin, Planner, Dispatcher, Finance
         group.MapGet("/", async (
             ISender sender,
             int page = 1,
@@ -28,22 +28,29 @@ public static class OrderEndpoints
             return Results.Ok(result);
         })
         .WithName("GetOrders")
-        .WithSummary("ดูรายการ Orders");
+        .WithSummary("ดูรายการ Orders")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Dispatcher", "Finance"));
 
-        // GET /api/orders/{id}
+        // GET /api/orders/{id} — Admin, Planner, Dispatcher, Customer
         group.MapGet("/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
         {
             var result = await sender.Send(new GetOrderByIdQuery(id), ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         })
         .WithName("GetOrderById")
-        .WithSummary("ดู Order ตาม ID");
+        .WithSummary("ดู Order ตาม ID")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Dispatcher", "Customer"));
 
-        // POST /api/orders
-        group.MapPost("/", async (CreateOrderRequest request, ISender sender, CancellationToken ct) =>
+        // POST /api/orders — Admin, Planner, Customer
+        group.MapPost("/", async (
+            CreateOrderRequest request,
+            ISender sender,
+            ITenantContext tenant,
+            CancellationToken ct) =>
         {
             var command = new CreateOrderCommand(
                 request.CustomerId,
+                tenant.TenantId,
                 request.OrderNumber,
                 request.PickupAddress,
                 request.DropoffAddress,
@@ -53,22 +60,24 @@ public static class OrderEndpoints
                 request.Priority,
                 request.Notes);
 
-            var id = await sender.Send(command, ct);
-            return Results.Created($"/api/orders/{id}", new { Id = id });
+            var response = await sender.Send(command, ct);
+            return Results.Created($"/api/orders/{response.Id}", response);
         })
         .WithName("CreateOrder")
-        .WithSummary("สร้าง Order ใหม่");
+        .WithSummary("สร้าง Order ใหม่")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Customer"));
 
-        // PUT /api/orders/{id}/confirm
+        // PUT /api/orders/{id}/confirm — Admin, Planner
         group.MapPut("/{id:guid}/confirm", async (Guid id, ISender sender, CancellationToken ct) =>
         {
             await sender.Send(new ConfirmOrderCommand(id), ct);
             return Results.NoContent();
         })
         .WithName("ConfirmOrder")
-        .WithSummary("ยืนยัน Order");
+        .WithSummary("ยืนยัน Order")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner"));
 
-        // PUT /api/orders/{id}/amend
+        // PUT /api/orders/{id}/amend — Admin, Planner, Customer
         group.MapPut("/{id:guid}/amend", async (
             Guid id, AmendOrderRequest request, ISender sender, CancellationToken ct) =>
         {
@@ -76,9 +85,10 @@ public static class OrderEndpoints
             return Results.NoContent();
         })
         .WithName("AmendOrder")
-        .WithSummary("แก้ไข Order (Draft/Confirmed)");
+        .WithSummary("แก้ไข Order (Draft/Confirmed)")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Customer"));
 
-        // PUT /api/orders/{id}/cancel
+        // PUT /api/orders/{id}/cancel — Admin, Planner, Customer
         group.MapPut("/{id:guid}/cancel", async (
             Guid id, CancelOrderRequest request, ISender sender, CancellationToken ct) =>
         {
@@ -86,71 +96,26 @@ public static class OrderEndpoints
             return Results.NoContent();
         })
         .WithName("CancelOrder")
-        .WithSummary("ยกเลิก Order");
+        .WithSummary("ยกเลิก Order")
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Customer"));
 
-        // POST /api/orders/import
+        // POST /api/orders/import — Admin, Planner
         group.MapPost("/import", async (
-            IFormFile file, ISender sender, CancellationToken ct) =>
+            IFormFile file,
+            ISender sender,
+            ITenantContext tenant,
+            CancellationToken ct) =>
         {
             await using var stream = file.OpenReadStream();
             var result = await sender.Send(
                 new Tms.Orders.Application.Features.ImportOrder.ImportOrdersCommand(
-                    stream, file.FileName), ct);
+                    stream, file.FileName, tenant.TenantId), ct);
             return Results.Ok(result);
         })
         .WithName("ImportOrders")
         .WithSummary("Bulk Import Orders (CSV/Excel)")
-        .DisableAntiforgery();
-
-        // ── Split Order ───────────────────────────────────────────────────────
-
-        // POST /api/orders/{id}/split  — Manual Split
-        group.MapPost("/{id:guid}/split", async (
-            Guid id, ManualSplitRequest request, ISender sender, CancellationToken ct) =>
-        {
-            var parts = request.Parts.Select(p => new SplitPartInput(
-                p.Items.Select(i => new ItemAllocationInput(i.ItemId, i.Quantity)).ToList(),
-                p.OverrideDropoffAddress is null ? null : new SplitAddressInput(
-                    p.OverrideDropoffAddress.Street,
-                    p.OverrideDropoffAddress.SubDistrict,
-                    p.OverrideDropoffAddress.District,
-                    p.OverrideDropoffAddress.Province,
-                    p.OverrideDropoffAddress.PostalCode,
-                    p.OverrideDropoffAddress.Latitude,
-                    p.OverrideDropoffAddress.Longitude),
-                p.OverrideDropoffWindow is null ? null : new SplitTimeWindowInput(
-                    p.OverrideDropoffWindow.From,
-                    p.OverrideDropoffWindow.To),
-                p.Notes)).ToList();
-
-            var result = await sender.Send(new SplitOrderCommand(id, parts, request.Reason), ct);
-            return Results.Ok(result);
-        })
-        .WithName("ManualSplitOrder")
-        .WithSummary("Manual Split Order — Planner กำหนด Item allocation เอง");
-
-        // POST /api/orders/{id}/split/auto  — Auto Split by capacity
-        group.MapPost("/{id:guid}/split/auto", async (
-            Guid id, AutoSplitRequest request, ISender sender, CancellationToken ct) =>
-        {
-            var result = await sender.Send(new AutoSplitOrderCommand(
-                id, request.MaxWeightPerSplitKg,
-                request.MaxVolumePerSplitCBM,
-                request.Reason), ct);
-            return Results.Ok(result);
-        })
-        .WithName("AutoSplitOrder")
-        .WithSummary("Auto Split Order ตาม Capacity");
-
-        // GET /api/orders/{id}/splits  — Get child orders of parent
-        group.MapGet("/{id:guid}/splits", async (
-            Guid id, ISender sender, CancellationToken ct) =>
-        {
-            var result = await sender.Send(new GetChildOrdersQuery(id), ct);
-            return Results.Ok(new { Items = result });
-        })
-        .WithName("GetChildOrders")
-        .WithSummary("ดู Child Orders ทั้งหมดของ Parent Order");
+        .DisableAntiforgery()
+        .RequireAuthorization(p => p.RequireRole("Admin", "Planner"));
 
         return app;
     }
@@ -161,44 +126,11 @@ public sealed record CancelOrderRequest(string Reason);
 public sealed record CreateOrderRequest(
     Guid CustomerId,
     string? OrderNumber,
-    Tms.Orders.Application.Features.CreateOrder.AddressDto PickupAddress,
-    Tms.Orders.Application.Features.CreateOrder.AddressDto DropoffAddress,
-    List<Tms.Orders.Application.Features.CreateOrder.OrderItemDto> Items,
-    Tms.Orders.Application.Features.CreateOrder.TimeWindowDto? PickupWindow = null,
-    Tms.Orders.Application.Features.CreateOrder.TimeWindowDto? DropoffWindow = null,
+    AddressDto PickupAddress,
+    AddressDto DropoffAddress,
+    List<OrderItemDto> Items,
+    TimeWindowDto? PickupWindow = null,
+    TimeWindowDto? DropoffWindow = null,
     string? Priority = "Normal",
     string? Notes = null
 );
-
-
-// ── Split Order Request Records ───────────────────────────────────────────────
-
-public sealed record ItemAllocationRequest(Guid ItemId, int Quantity);
-
-public sealed record SplitAddressRequest(
-    string Street,
-    string SubDistrict,
-    string District,
-    string Province,
-    string PostalCode,
-    double? Latitude = null,
-    double? Longitude = null);
-
-public sealed record SplitTimeWindowRequest(DateTime From, DateTime To);
-
-public sealed record SplitPartRequest(
-    List<ItemAllocationRequest> Items,
-    SplitAddressRequest? OverrideDropoffAddress = null,
-    SplitTimeWindowRequest? OverrideDropoffWindow = null,
-    string? Notes = null);
-
-/// <summary>Request body for POST /api/orders/{id}/split (Manual Split)</summary>
-public sealed record ManualSplitRequest(
-    List<SplitPartRequest> Parts,
-    string? Reason = null);
-
-/// <summary>Request body for POST /api/orders/{id}/split/auto (Auto Split)</summary>
-public sealed record AutoSplitRequest(
-    decimal MaxWeightPerSplitKg,
-    decimal MaxVolumePerSplitCBM = 0m,
-    string? Reason = null);

@@ -10,10 +10,16 @@ public sealed record OrderDto(
     string Status,
     string Priority,
     decimal TotalWeight,
-    decimal TotalVolume,
+    decimal TotalVolumeCBM,
     int ItemCount,
     string PickupAddress,
+    string PickupProvince,
     string DropoffAddress,
+    string DropoffProvince,
+    DateTime? PickupWindowFrom,
+    DateTime? PickupWindowTo,
+    DateTime? DropoffWindowFrom,
+    DateTime? DropoffWindowTo,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 
@@ -35,22 +41,29 @@ public sealed class GetOrdersHandler(IOrderRepository orderRepository)
             request.Status, request.CustomerId,
             cancellationToken);
 
-        var dtos = items.Select(o => new OrderDto(
-            o.Id,
-            o.OrderNumber,
-            o.CustomerId,
-            o.Status.ToString(),
-            o.Priority.ToString(),
-            o.TotalWeight,
-            o.TotalVolume,
-            o.Items.Count,
-            o.PickupAddress.ToString(),
-            o.DropoffAddress.ToString(),
-            o.CreatedAt,
-            o.UpdatedAt)).ToList();
-
+        var dtos = items.Select(MapDto).ToList();
         return PagedResult<OrderDto>.Create(dtos, totalCount, request.Page, request.PageSize);
     }
+
+    internal static OrderDto MapDto(Domain.Entities.TransportOrder o) => new(
+        o.Id,
+        o.OrderNumber,
+        o.CustomerId,
+        o.Status.ToString(),
+        o.Priority.ToString(),
+        o.TotalWeight,
+        o.TotalVolumeCBM,
+        o.Items.Count,
+        o.PickupAddress.ToString(),
+        o.PickupAddress.Province,
+        o.DropoffAddress.ToString(),
+        o.DropoffAddress.Province,
+        o.PickupWindow?.From,
+        o.PickupWindow?.To,
+        o.DropoffWindow?.From,
+        o.DropoffWindow?.To,
+        o.CreatedAt,
+        o.UpdatedAt);
 }
 
 public sealed record GetOrderByIdQuery(Guid OrderId) : IQuery<OrderDto?>;
@@ -61,13 +74,6 @@ public sealed class GetOrderByIdHandler(IOrderRepository orderRepository)
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
         var o = await orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
-        if (o is null) return null;
-
-        return new OrderDto(
-            o.Id, o.OrderNumber, o.CustomerId,
-            o.Status.ToString(), o.Priority.ToString(),
-            o.TotalWeight, o.TotalVolume, o.Items.Count,
-            o.PickupAddress.ToString(), o.DropoffAddress.ToString(),
-            o.CreatedAt, o.UpdatedAt);
+        return o is null ? null : GetOrdersHandler.MapDto(o);
     }
 }

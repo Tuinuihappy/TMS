@@ -48,14 +48,23 @@ public sealed record OrderConfirmedIntegrationEvent(
     Guid OrderId,
     string OrderNumber,
     Guid CustomerId,
+    string Priority,
     double PickupLatitude,
     double PickupLongitude,
+    string PickupProvince,
     double DropoffLatitude,
     double DropoffLongitude,
+    string DropoffProvince,
     decimal TotalWeight,
-    decimal TotalVolume,
+    decimal TotalVolumeCBM,
+    int ItemCount,
+    bool HasDangerousGoods,
     DateTime? ReadyTime,
-    DateTime? DueTime) : IntegrationEvent;
+    DateTime? DueTime,
+    DateTime? PickupWindowFrom,
+    DateTime? PickupWindowTo,
+    DateTime? DropoffWindowFrom,
+    DateTime? DropoffWindowTo) : IntegrationEvent;
 
 public sealed record OrderCancelledIntegrationEvent(
     Guid OrderId,
@@ -64,7 +73,8 @@ public sealed record OrderCancelledIntegrationEvent(
 
 public sealed record OrderAmendedIntegrationEvent(
     Guid OrderId,
-    string OrderNumber) : IntegrationEvent;
+    string OrderNumber,
+    IReadOnlyList<string> Changes) : IntegrationEvent;
 
 // ══════════════════════════════════════════════════════════════════════
 // PLANNING MODULE — Trip & Dispatch Events
@@ -93,6 +103,7 @@ public sealed record TripCancelledIntegrationEvent(
     Guid TripId,
     string TripNumber,
     string Reason,
+    List<TripStopSnapshot> Stops,
     Guid? VehicleId = null,
     Guid? DriverId = null) : IntegrationEvent;
 

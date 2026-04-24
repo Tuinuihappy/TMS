@@ -7,9 +7,9 @@ using Tms.SharedKernel.Application;
 namespace Tms.Orders.Application.Features.CreateOrder;
 
 public sealed class CreateOrderHandler(IOrderRepository orderRepository)
-    : ICommandHandler<CreateOrderCommand, Guid>
+    : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
 {
-    public async Task<Guid> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
+    public async Task<CreateOrderResponse> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         var orderNumber = request.OrderNumber
             ?? await orderRepository.GenerateOrderNumberAsync(cancellationToken);
@@ -21,7 +21,8 @@ public sealed class CreateOrderHandler(IOrderRepository orderRepository)
             request.PickupAddress.Province,
             request.PickupAddress.PostalCode,
             request.PickupAddress.Latitude,
-            request.PickupAddress.Longitude);
+            request.PickupAddress.Longitude,
+            request.PickupAddress.Name);
 
         var dropoff = Address.Create(
             request.DropoffAddress.Street,
@@ -30,7 +31,8 @@ public sealed class CreateOrderHandler(IOrderRepository orderRepository)
             request.DropoffAddress.Province,
             request.DropoffAddress.PostalCode,
             request.DropoffAddress.Latitude,
-            request.DropoffAddress.Longitude);
+            request.DropoffAddress.Longitude,
+            request.DropoffAddress.Name);
 
         var priority = Enum.TryParse<OrderPriority>(request.Priority, true, out var p)
             ? p : OrderPriority.Normal;
@@ -47,20 +49,31 @@ public sealed class CreateOrderHandler(IOrderRepository orderRepository)
             orderNumber, request.CustomerId,
             pickup, dropoff,
             priority, pickupWindow, dropoffWindow,
-            request.Notes);
+            request.Notes, request.TenantId);
 
         foreach (var itemDto in request.Items)
         {
             var item = OrderItem.Create(
                 order.Id,
                 itemDto.Description,
-                itemDto.Weight,
-                itemDto.Volume,
-                itemDto.Quantity);
+                itemDto.WeightKg,
+                itemDto.VolumeCBM,
+                itemDto.Quantity,
+                sku: itemDto.Sku,
+                isDangerousGoods: itemDto.IsDangerousGoods,
+                unNumber: itemDto.UNNumber,
+                dgClass: itemDto.DGClass);
             order.AddItem(item);
         }
 
         await orderRepository.AddAsync(order, cancellationToken);
-        return order.Id;
+
+        return new CreateOrderResponse(
+            order.Id,
+            order.OrderNumber,
+            order.Status.ToString(),
+            order.TotalWeight,
+            order.TotalVolumeCBM,
+            order.CreatedAt);
     }
 }

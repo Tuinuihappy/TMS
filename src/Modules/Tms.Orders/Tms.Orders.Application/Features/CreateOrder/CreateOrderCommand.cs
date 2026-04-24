@@ -2,11 +2,23 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Orders.Application.Features.CreateOrder;
 
+public sealed record CreateOrderResponse(
+    Guid Id,
+    string OrderNumber,
+    string Status,
+    decimal TotalWeight,
+    decimal TotalVolumeCBM,
+    DateTime CreatedAt);
+
 public sealed record OrderItemDto(
     string Description,
-    decimal Weight,
-    decimal Volume,
-    int Quantity);
+    decimal WeightKg,
+    decimal VolumeCBM,
+    int Quantity,
+    bool IsDangerousGoods = false,
+    string? UNNumber = null,
+    string? DGClass = null,
+    string? Sku = null);
 
 public sealed record AddressDto(
     string Street,
@@ -15,12 +27,14 @@ public sealed record AddressDto(
     string Province,
     string PostalCode,
     double? Latitude = null,
-    double? Longitude = null);
+    double? Longitude = null,
+    string? Name = null);
 
 public sealed record TimeWindowDto(DateTime From, DateTime To);
 
 public sealed record CreateOrderCommand(
     Guid CustomerId,
+    Guid TenantId,
     string? OrderNumber,
     AddressDto PickupAddress,
     AddressDto DropoffAddress,
@@ -29,4 +43,4 @@ public sealed record CreateOrderCommand(
     TimeWindowDto? DropoffWindow = null,
     string? Priority = "Normal",
     string? Notes = null
-) : ICommand<Guid>;
+) : ICommand<CreateOrderResponse>;

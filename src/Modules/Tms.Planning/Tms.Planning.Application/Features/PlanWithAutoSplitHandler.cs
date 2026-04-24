@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
@@ -11,11 +10,7 @@ namespace Tms.Planning.Application.Features;
 
 /// <summary>
 /// POST /api/planning/plan-with-split
-/// Auto Planning + Auto Split รวมกัน:
-/// 1. โหลด orders ตาม OrderIds
-/// 2. ตรวจ orders ไหนเกิน capacity → auto split ก่อน (ผ่าน MediatR cross-module)
-/// 3. ส่ง child orders เข้า OR-Tools VRP Solver
-/// 4. สร้าง RoutePlans
+/// VRP Planning: โหลด orders → ส่งเข้า OR-Tools VRP Solver → สร้าง RoutePlans
 /// </summary>
 public sealed record PlanWithAutoSplitCommand(
     List<Guid> OrderIds,
@@ -33,24 +28,12 @@ public sealed record PlanWithAutoSplitCommand(
 
 public sealed record PlanWithSplitResult(
     Guid OptimizationRequestId,
-    int RoutePlanCount,
-    List<SplitPerformedSummary> SplitsPerformed);
-
-public sealed record SplitPerformedSummary(
-    Guid OriginalOrderId,
-    string OriginalOrderNumber,
-    List<Guid> SplitChildOrderIds);
-
-/// <summary>
-/// Cross-module split request bridged via MediatR — actual type lives in SharedKernel.
-/// Handler (CrossModuleAutoSplitHandler) lives in Orders.Application.
-/// </summary>
+    int RoutePlanCount);
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class PlanWithAutoSplitHandler(
     IOrderQueryService orderQuery,
-    ISender mediator,
     IOptimizationRequestRepository optRepo,
     IRoutePlanRepository planRepo,
     OrToolsVrpSolver vrpSolver,
@@ -67,48 +50,15 @@ public sealed class PlanWithAutoSplitHandler(
 
         // Validate status
         var invalid = snapshots
-            .Where(o => o.Status is not ("Confirmed" or "Draft" or "PartialSplit"))
+            .Where(o => o.Status is not ("Confirmed" or "Draft"))
             .ToList();
         if (invalid.Count > 0)
             throw new DomainException(
                 $"Orders [{string.Join(", ", invalid.Select(o => o.OrderNumber))}] cannot be planned.",
                 "INVALID_ORDER_STATUS_FOR_PLAN");
 
-        // 2. Auto-split oversized orders (via MediatR cross-module)
-        var splitsPerformed = new List<SplitPerformedSummary>();
-        var effectiveOrderIds = new List<Guid>();
-
-        foreach (var snap in snapshots)
-        {
-            bool exceedsWeight = request.MaxVehicleWeightKg > 0
-                                 && snap.TotalWeightKg > request.MaxVehicleWeightKg;
-            bool exceedsVolume = request.MaxVehicleVolumeCBM > 0
-                                 && snap.TotalVolumeCBM > request.MaxVehicleVolumeCBM;
-
-            if (exceedsWeight || exceedsVolume)
-            {
-                // Send cross-module split request via MediatR
-                var splitResult = await mediator.Send(
-                    new CrossModuleAutoSplitRequest(
-                        snap.Id,
-                        request.MaxVehicleWeightKg,
-                        request.MaxVehicleVolumeCBM), ct);
-
-                splitsPerformed.Add(new SplitPerformedSummary(
-                    snap.Id, snap.OrderNumber, splitResult.ChildOrderIds));
-                effectiveOrderIds.AddRange(splitResult.ChildOrderIds);
-            }
-            else
-            {
-                effectiveOrderIds.Add(snap.Id);
-            }
-        }
-
-        // 3. Re-load effective orders (includes newly split children)
-        var effectiveSnapshots = await orderQuery.GetOrdersByIdsAsync(effectiveOrderIds, ct);
-
-        // 4. Build VrpOrderInput list for OR-Tools
-        var vrpInputs = effectiveSnapshots
+        // 2. Build VrpOrderInput list for OR-Tools
+        var vrpInputs = snapshots
             .Where(s => s.PickupLat.HasValue && s.DropoffLat.HasValue)
             .Select(s => new VrpOrderInput(
                 OrderId: s.Id,
@@ -199,14 +149,13 @@ public sealed class PlanWithAutoSplitHandler(
                 System.Text.Json.JsonSerializer.Serialize(new
                 {
                     PlanCount = plans.Count,
-                    Solver = "Google OR-Tools",
-                    SplitsPerformed = splitsPerformed.Count
+                    Solver = "Google OR-Tools"
                 }),
                 plans);
 
             await optRepo.UpdateAsync(optRequest, ct);
 
-            return new PlanWithSplitResult(optRequest.Id, plans.Count, splitsPerformed);
+            return new PlanWithSplitResult(optRequest.Id, plans.Count);
         }
         catch (Exception ex)
         {
