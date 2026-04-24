@@ -34,9 +34,10 @@ public static class ResourcesModule
         {
             cfg.RegisterServicesFromAssembly(typeof(CreateVehicleHandler).Assembly);
             cfg.RegisterServicesFromAssembly(typeof(ResourcesModule).Assembly);
-            // Phase 3: TripCompleted → auto-release vehicle + driver
             cfg.RegisterServicesFromAssembly(typeof(TripCompletedResourceReleaseHandler).Assembly);
         });
+
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         // IOutboxWriter — backed by ResourcesDbContext
         services.AddScoped<IOutboxWriter>(sp =>

@@ -105,4 +105,13 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             .Where(o => idList.Contains(o.Id))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<TransportOrder>> GetActiveByCustomerIdAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default) =>
+        await context.TransportOrders
+            .Where(o => o.CustomerId == customerId
+                     && (o.Status == Domain.Enums.OrderStatus.Draft
+                      || o.Status == Domain.Enums.OrderStatus.Confirmed))
+            .ToListAsync(cancellationToken);
 }

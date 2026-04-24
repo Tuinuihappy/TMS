@@ -13,4 +13,5 @@ public interface IOrderRepository : IRepository<TransportOrder>
         CancellationToken cancellationToken = default);
     Task<string> GenerateOrderNumberAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TransportOrder>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TransportOrder>> GetActiveByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default);
 }

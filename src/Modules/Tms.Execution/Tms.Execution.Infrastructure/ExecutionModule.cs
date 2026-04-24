@@ -40,6 +40,8 @@ public static class ExecutionModule
             cfg.RegisterServicesFromAssembly(typeof(ExecutionModule).Assembly);
         });
 
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
         return services;
     }
 }

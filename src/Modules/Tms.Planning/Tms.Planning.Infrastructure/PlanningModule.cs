@@ -47,6 +47,8 @@ public static class PlanningModule
             cfg.RegisterServicesFromAssembly(typeof(PlanningModule).Assembly);
         });
 
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
         return services;
     }
 }
