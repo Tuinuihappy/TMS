@@ -7,15 +7,19 @@ namespace Tms.Planning.Infrastructure.Persistence.Repositories;
 
 public sealed class RoutePlanRepository(PlanningDbContext context) : IRoutePlanRepository
 {
+    // read-only: RoutePlanLockedIntegrationEventHandler อ่านเพื่อสร้าง Trip เท่านั้น ไม่แก้ RoutePlan
     public async Task<RoutePlan?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.RoutePlans
+            .AsNoTracking()
             .Include(p => p.Stops)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
+    // read-only: query สำหรับ dispatch board / planning UI
     public async Task<IReadOnlyList<RoutePlan>> GetByDateAsync(
         DateOnly date, Guid? tenantId, CancellationToken ct = default)
     {
         var query = context.RoutePlans
+            .AsNoTracking()
             .Include(p => p.Stops)
             .Where(p => p.PlannedDate == date);
         if (tenantId.HasValue)
@@ -50,6 +54,7 @@ public sealed class RoutePlanRepository(PlanningDbContext context) : IRoutePlanR
 
 public sealed class OptimizationRequestRepository(PlanningDbContext context) : IOptimizationRequestRepository
 {
+    // tracking=true: ProcessOptimizationRequestCommandHandler ต้อง UpdateAsync หลังโหลด
     public async Task<OptimizationRequest?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.OptimizationRequests
             .Include(r => r.Plans)

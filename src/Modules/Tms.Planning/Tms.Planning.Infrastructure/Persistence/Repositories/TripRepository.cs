@@ -7,12 +7,17 @@ namespace Tms.Planning.Infrastructure.Persistence.Repositories;
 
 public sealed class TripRepository(PlanningDbContext context) : ITripRepository
 {
+    // tracking=true: DispatchTripHandler, CancelTripHandler, AssignResourcesHandler ต้อง UpdateAsync
     public async Task<Trip?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.Trips.FirstOrDefaultAsync(t => t.Id == id, ct);
 
+    // read-only: idempotency / validation check เท่านั้น
     public async Task<Trip?> GetByTripNumberAsync(string tripNumber, CancellationToken ct = default) =>
-        await context.Trips.FirstOrDefaultAsync(t => t.TripNumber == tripNumber, ct);
+        await context.Trips
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TripNumber == tripNumber, ct);
 
+    // read-only: query list สำหรับ UI
     public async Task<(IReadOnlyList<Trip> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize,
         string? status = null,
@@ -20,7 +25,7 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
         Guid? tenantId = null,
         CancellationToken ct = default)
     {
-        var query = context.Trips.Include(t => t.Stops).AsQueryable();
+        var query = context.Trips.AsNoTracking().Include(t => t.Stops).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(t => t.Status.ToString() == status);
@@ -39,8 +44,10 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
         return (items, total);
     }
 
+    // read-only: GetDispatchBoardHandler ใช้แค่ map DTO ไม่แก้ไข
     public async Task<IReadOnlyList<Trip>> GetByDateAsync(DateOnly date, Guid tenantId, CancellationToken ct = default) =>
         await context.Trips
+            .AsNoTracking()
             .Include(t => t.Stops)
             .Where(t => DateOnly.FromDateTime(t.PlannedDate) == date && t.TenantId == tenantId)
             .OrderBy(t => t.TripNumber)
@@ -78,6 +85,7 @@ public sealed class TripRepository(PlanningDbContext context) : ITripRepository
         await context.SaveChangesAsync(ct);
     }
 
+    // tracking=true: Shipment event handlers (PickedUp, Arrived, Delivered) ต้อง UpdateAsync หลังโหลด
     public async Task<Trip?> GetByStopIdAsync(Guid stopId, CancellationToken ct = default) =>
         await context.Trips
             .Include(t => t.Stops)

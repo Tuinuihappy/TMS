@@ -2,22 +2,25 @@ using Microsoft.EntityFrameworkCore;
 using Tms.Execution.Domain.Entities;
 using Tms.Execution.Domain.Interfaces;
 using Tms.Execution.Infrastructure.Persistence;
-using Tms.SharedKernel.Exceptions;
 
 namespace Tms.Execution.Infrastructure.Persistence.Repositories;
 
 public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRepository
 {
+    // tracking=true: PickUp/Arrive/Deliver/Reject handlers ต้อง UpdateAsync หลังโหลด
     public async Task<Shipment?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.Shipments
             .Include(s => s.POD)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
 
+    // read-only: validation/lookup เท่านั้น
     public async Task<Shipment?> GetByShipmentNumberAsync(string shipmentNumber, CancellationToken ct = default) =>
         await context.Shipments
+            .AsNoTracking()
             .Include(s => s.POD)
             .FirstOrDefaultAsync(s => s.ShipmentNumber == shipmentNumber, ct);
 
+    // read-only: query list สำหรับ UI
     public async Task<(IReadOnlyList<Shipment> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize,
         string? status = null,
@@ -25,7 +28,7 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
         Guid? tenantId = null,
         CancellationToken ct = default)
     {
-        var query = context.Shipments.Include(s => s.POD).AsQueryable();
+        var query = context.Shipments.AsNoTracking().Include(s => s.POD).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(s => s.Status.ToString() == status);
@@ -44,22 +47,26 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
         return (items, total);
     }
 
+    // tracking=true: TripCancelledShipmentHandler / TripReOptimizedShipmentHandler ต้อง UpdateAsync
     public async Task<IReadOnlyList<Shipment>> GetByTripIdAsync(Guid tripId, CancellationToken ct = default) =>
         await context.Shipments
             .Where(s => s.TripId == tripId)
             .OrderBy(s => s.CreatedAt)
             .ToListAsync(ct);
 
+    // read-only: idempotency check ใน TripDispatchedShipmentCreator — ไม่แก้ entity หลังจากนี้
     public async Task<Shipment?> GetByTripAndOrderAsync(Guid tripId, Guid orderId, CancellationToken ct = default) =>
         await context.Shipments
-            .Include(s => s.POD)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.TripId == tripId && s.OrderId == orderId, ct);
 
+    // read-only: query lookup — ใช้ใน ShipmentDeliveredStopHandler อ่านค่าเช็ค ไม่แก้ไข
     public async Task<Shipment?> GetByDropoffStopIdAsync(Guid dropoffStopId, CancellationToken ct = default) =>
         await context.Shipments
-            .Include(s => s.POD)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.DropoffStopId == dropoffStopId, ct);
 
+    // tracking=true: VehicleEnteredZoneShipmentHandler ต้อง UpdateAsync (PickUp / Arrive)
     public async Task<IReadOnlyList<Shipment>> GetByTenantPendingAsync(Guid tenantId, CancellationToken ct = default) =>
         await context.Shipments
             .Where(s => s.TenantId == tenantId
@@ -67,6 +74,7 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
                       || s.Status == Execution.Domain.Enums.ShipmentStatus.InTransit))
             .ToListAsync(ct);
 
+    // tracking=true: geofence handlers ต้อง UpdateAsync
     public async Task<IReadOnlyList<Shipment>> GetByTenantAllPendingAsync(Guid tenantId, CancellationToken ct = default) =>
         await context.Shipments
             .Where(s => s.TenantId == tenantId
@@ -105,6 +113,7 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
         await context.SaveChangesAsync(ct);
     }
 
+    // tracking=true: VehicleEnteredZoneShipmentHandler ต้อง UpdateAsync (auto PickUp)
     public async Task<IReadOnlyList<Shipment>> GetActiveByVehiclePickupLocationAsync(
         Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default) =>
         await context.Shipments
@@ -113,6 +122,7 @@ public sealed class ShipmentRepository(ExecutionDbContext context) : IShipmentRe
                      && s.Status == Execution.Domain.Enums.ShipmentStatus.Pending)
             .ToListAsync(ct);
 
+    // tracking=true: VehicleEnteredZoneShipmentHandler ต้อง UpdateAsync (auto Arrive)
     public async Task<IReadOnlyList<Shipment>> GetActiveByVehicleDropoffLocationAsync(
         Guid vehicleId, Guid locationId, Guid tenantId, CancellationToken ct = default) =>
         await context.Shipments

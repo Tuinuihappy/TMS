@@ -3,28 +3,31 @@ using Microsoft.EntityFrameworkCore;
 using Tms.Orders.Domain.Entities;
 using Tms.Orders.Domain.Interfaces;
 using Tms.Orders.Infrastructure.Persistence;
-using Tms.SharedKernel.Exceptions;
 
 namespace Tms.Orders.Infrastructure.Persistence.Repositories;
 
 public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
 {
+    // tracking=true สำหรับ command handlers ที่ต้อง SaveChanges
     public async Task<TransportOrder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.TransportOrders
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
 
+    // read-only: ใช้ validate/check เท่านั้น
     public async Task<TransportOrder?> GetByOrderNumberAsync(
         string orderNumber, CancellationToken cancellationToken = default) =>
         await context.TransportOrders
+            .AsNoTracking()
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
 
+    // read-only: query list สำหรับ UI
     public async Task<(IReadOnlyList<TransportOrder> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize,
         string? status = null,
         Guid? customerId = null,
         CancellationToken cancellationToken = default)
     {
-        var query = context.TransportOrders.AsQueryable();
+        var query = context.TransportOrders.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -96,6 +99,7 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
         }
     }
 
+    // tracking=true: TripDispatchedOrderHandler / TripCancelledOrderHandler ต้อง UpdateAsync หลังโหลด
     public async Task<IReadOnlyList<TransportOrder>> GetByIdsAsync(
         IEnumerable<Guid> ids,
         CancellationToken cancellationToken = default)
@@ -106,6 +110,7 @@ public sealed class OrderRepository(OrdersDbContext context) : IOrderRepository
             .ToListAsync(cancellationToken);
     }
 
+    // tracking=true: CustomerDeactivatedOrderHandler ต้อง UpdateAsync หลังโหลด
     public async Task<IReadOnlyList<TransportOrder>> GetActiveByCustomerIdAsync(
         Guid customerId,
         CancellationToken cancellationToken = default) =>

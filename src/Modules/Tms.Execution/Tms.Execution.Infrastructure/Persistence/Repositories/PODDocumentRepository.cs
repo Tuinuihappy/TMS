@@ -7,8 +7,10 @@ namespace Tms.Execution.Infrastructure.Persistence.Repositories;
 
 public sealed class PODDocumentRepository(ExecutionDbContext context) : IPODDocumentRepository
 {
+    // read-only: GetShipmentByIdHandler ใช้แค่ map DTO ไม่แก้ไข
     public async Task<PODDocument?> GetByShipmentIdAsync(Guid shipmentId, CancellationToken ct = default) =>
         await context.PODDocuments
+            .AsNoTracking()
             .Include(p => p.Verifications)
             .FirstOrDefaultAsync(p => p.ShipmentId == shipmentId, ct);
 

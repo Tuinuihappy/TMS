@@ -7,21 +7,27 @@ namespace Tms.Resources.Infrastructure.Persistence.Repositories;
 
 public sealed class VehicleRepository(ResourcesDbContext context) : IVehicleRepository
 {
+    // tracking=true: ChangeVehicleStatusHandler / UpdateVehicleHandler ต้อง UpdateAsync
     public async Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.Vehicles.FirstOrDefaultAsync(v => v.Id == id, ct);
 
+    // read-only: duplicate check เท่านั้น
     public async Task<Vehicle?> GetByPlateNumberAsync(string plateNumber, CancellationToken ct = default) =>
-        await context.Vehicles.FirstOrDefaultAsync(v => v.PlateNumber == plateNumber, ct);
+        await context.Vehicles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.PlateNumber == plateNumber, ct);
 
+    // AnyAsync ไม่ track อยู่แล้ว
     public async Task<bool> ExistsByPlateNumberAsync(string plateNumber, CancellationToken ct = default) =>
         await context.Vehicles.AnyAsync(v => v.PlateNumber == plateNumber, ct);
 
+    // read-only: query list สำหรับ UI
     public async Task<(IReadOnlyList<Vehicle> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize,
         string? status = null, Guid? vehicleTypeId = null, Guid? tenantId = null,
         CancellationToken ct = default)
     {
-        var query = context.Vehicles.AsQueryable();
+        var query = context.Vehicles.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(v => v.Status.ToString() == status);
         if (vehicleTypeId.HasValue)
@@ -37,20 +43,22 @@ public sealed class VehicleRepository(ResourcesDbContext context) : IVehicleRepo
         return (items, total);
     }
 
+    // read-only: ResourceAvailabilityChecker อ่านค่าตรวจสอบ ไม่แก้ไข
     public async Task<IReadOnlyList<Vehicle>> GetAvailableAsync(
         Guid tenantId, decimal? minPayloadKg = null, bool includeDetails = false,
         CancellationToken ct = default)
     {
         var query = context.Vehicles
+            .AsNoTracking()
             .Include(v => v.MaintenanceRecords)
             .Where(v => v.TenantId == tenantId
                 && v.Status == VehicleStatus.Available
                 && (v.RegistrationExpiry == null || v.RegistrationExpiry >= DateTime.UtcNow.Date));
 
-        // Join with VehicleType for payload filter
         if (minPayloadKg.HasValue)
         {
             var validTypeIds = await context.VehicleTypes
+                .AsNoTracking()
                 .Where(t => t.MaxPayloadKg >= minPayloadKg.Value)
                 .Select(t => t.Id)
                 .ToListAsync(ct);
@@ -60,11 +68,13 @@ public sealed class VehicleRepository(ResourcesDbContext context) : IVehicleRepo
         return await query.OrderBy(v => v.PlateNumber).ToListAsync(ct);
     }
 
+    // read-only: expiry alert query สำหรับ notification เท่านั้น
     public async Task<IReadOnlyList<Vehicle>> GetExpiryAlertsAsync(
         Guid tenantId, int withinDays = 30, CancellationToken ct = default)
     {
         var threshold = DateTime.UtcNow.Date.AddDays(withinDays);
         return await context.Vehicles
+            .AsNoTracking()
             .Where(v => v.TenantId == tenantId
                 && v.RegistrationExpiry != null
                 && v.RegistrationExpiry <= threshold
@@ -99,21 +109,27 @@ public sealed class VehicleRepository(ResourcesDbContext context) : IVehicleRepo
 
 public sealed class DriverRepository(ResourcesDbContext context) : IDriverRepository
 {
+    // tracking=true: ChangeDriverStatusHandler / UpdateDriverHandler ต้อง UpdateAsync
     public async Task<Driver?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await context.Drivers.FirstOrDefaultAsync(d => d.Id == id, ct);
 
+    // read-only: duplicate check เท่านั้น
     public async Task<Driver?> GetByEmployeeCodeAsync(string employeeCode, CancellationToken ct = default) =>
-        await context.Drivers.FirstOrDefaultAsync(d => d.EmployeeCode == employeeCode, ct);
+        await context.Drivers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.EmployeeCode == employeeCode, ct);
 
+    // AnyAsync ไม่ track อยู่แล้ว
     public async Task<bool> ExistsByEmployeeCodeAsync(string employeeCode, CancellationToken ct = default) =>
         await context.Drivers.AnyAsync(d => d.EmployeeCode == employeeCode, ct);
 
+    // read-only: query list สำหรับ UI
     public async Task<(IReadOnlyList<Driver> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize,
         string? status = null, string? licenseType = null, Guid? tenantId = null,
         CancellationToken ct = default)
     {
-        var query = context.Drivers.AsQueryable();
+        var query = context.Drivers.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(d => d.Status.ToString() == status);
         if (!string.IsNullOrWhiteSpace(licenseType))
@@ -129,11 +145,13 @@ public sealed class DriverRepository(ResourcesDbContext context) : IDriverReposi
         return (items, total);
     }
 
+    // read-only: ResourceAvailabilityChecker อ่านค่าตรวจสอบ ไม่แก้ไข
     public async Task<IReadOnlyList<Driver>> GetAvailableAsync(
         Guid tenantId, string? requiredLicenseType = null,
         CancellationToken ct = default)
     {
         var query = context.Drivers
+            .AsNoTracking()
             .Where(d => d.TenantId == tenantId
                 && d.Status == DriverStatus.Available
                 && d.License.ExpiryDate >= DateTime.UtcNow.Date);
@@ -144,11 +162,13 @@ public sealed class DriverRepository(ResourcesDbContext context) : IDriverReposi
         return await query.OrderByDescending(d => d.PerformanceScore).ToListAsync(ct);
     }
 
+    // read-only: expiry alert query สำหรับ notification เท่านั้น
     public async Task<IReadOnlyList<Driver>> GetExpiryAlertsAsync(
         Guid tenantId, int withinDays = 30, CancellationToken ct = default)
     {
         var threshold = DateTime.UtcNow.Date.AddDays(withinDays);
         return await context.Drivers
+            .AsNoTracking()
             .Where(d => d.TenantId == tenantId
                 && d.License.ExpiryDate <= threshold
                 && d.Status != DriverStatus.Suspended)
