@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tms.Orders.Application.Features.CreateOrder;
+using Tms.Orders.Application.Features.GetOrders;
 using Tms.Orders.Domain.Interfaces;
 using Tms.Orders.Infrastructure.Persistence;
 using Tms.Orders.Infrastructure.Persistence.Repositories;
@@ -27,6 +28,9 @@ public static class OrdersModule
 
         // Repositories
         services.AddScoped<IOrderRepository, OrderRepository>();
+
+        // Read services (CQRS read side — LINQ projection, no entity tracking)
+        services.AddScoped<IOrderReadService, OrderReadService>();
 
         // Cross-module query service — Planning ใช้อ่าน Order data
         services.AddScoped<IOrderQueryService, OrderQueryService>();

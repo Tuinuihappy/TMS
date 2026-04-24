@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Tms.Planning.Application.Common.Interfaces;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -224,43 +226,63 @@ public sealed record GetTripsQuery(
     Guid? TenantId = null
 ) : IQuery<PagedResult<TripDto>>;
 
-public sealed class GetTripsHandler(ITripRepository repo)
+public sealed class GetTripsHandler(IPlanningDbContext db)
     : IQueryHandler<GetTripsQuery, PagedResult<TripDto>>
 {
     public async Task<PagedResult<TripDto>> Handle(GetTripsQuery request, CancellationToken ct)
     {
-        var (items, total) = await repo.GetPagedAsync(
-            request.Page, request.PageSize,
-            request.Status, request.PlannedDate, request.TenantId, ct);
+        var query = db.Trips.AsNoTracking().AsQueryable();
 
-        return PagedResult<TripDto>.Create(
-            items.Select(MapDto).ToList(),
-            total, request.Page, request.PageSize);
+        if (!string.IsNullOrWhiteSpace(request.Status) &&
+            Enum.TryParse<TripStatus>(request.Status, ignoreCase: true, out var status))
+            query = query.Where(t => t.Status == status);
+
+        if (request.PlannedDate.HasValue)
+            query = query.Where(t => DateOnly.FromDateTime(t.PlannedDate) == request.PlannedDate.Value);
+
+        if (request.TenantId.HasValue)
+            query = query.Where(t => t.TenantId == request.TenantId.Value);
+
+        var total = await query.CountAsync(ct);
+
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(ProjectToDto)
+            .ToListAsync(ct);
+
+        return PagedResult<TripDto>.Create(items, total, request.Page, request.PageSize);
     }
 
-    internal static TripDto MapDto(Trip t) => new(
-        t.Id, t.TripNumber, t.Status.ToString(),
-        t.VehicleId, t.DriverId, t.PlannedDate,
-        t.TotalWeight, t.TotalVolumeCBM,
-        t.TotalDistanceKm, t.EstimatedDurationMin,
-        t.CancelReason, t.DispatchedAt, t.CompletedAt, t.CreatedAt,
-        t.Stops.OrderBy(s => s.Sequence).Select(s => new StopDto(
-            s.Id, s.Sequence, s.OrderId, s.Type.ToString(), s.Status.ToString(),
-            s.AddressName, s.AddressProvince,
-            s.WindowFrom, s.WindowTo, s.ArrivalAt, s.DepartureAt)).ToList());
+    internal static readonly System.Linq.Expressions.Expression<Func<Trip, TripDto>> ProjectToDto =
+        t => new TripDto(
+            t.Id, t.TripNumber, t.Status.ToString(),
+            t.VehicleId, t.DriverId, t.PlannedDate,
+            t.TotalWeight, t.TotalVolumeCBM,
+            t.TotalDistanceKm, t.EstimatedDurationMin,
+            t.CancelReason, t.DispatchedAt, t.CompletedAt, t.CreatedAt,
+            t.Stops.OrderBy(s => s.Sequence)
+                .Select(s => new StopDto(
+                    s.Id, s.Sequence, s.OrderId,
+                    s.Type.ToString(), s.Status.ToString(),
+                    s.AddressName, s.AddressProvince,
+                    s.WindowFrom, s.WindowTo, s.ArrivalAt, s.DepartureAt))
+                .ToList());
 }
 
 // ── Get Trip By Id ────────────────────────────────────────────────────────
 public sealed record GetTripByIdQuery(Guid TripId) : IQuery<TripDto?>;
 
-public sealed class GetTripByIdHandler(ITripRepository repo)
+public sealed class GetTripByIdHandler(IPlanningDbContext db)
     : IQueryHandler<GetTripByIdQuery, TripDto?>
 {
-    public async Task<TripDto?> Handle(GetTripByIdQuery request, CancellationToken ct)
-    {
-        var trip = await repo.GetByIdAsync(request.TripId, ct);
-        return trip is null ? null : GetTripsHandler.MapDto(trip);
-    }
+    public async Task<TripDto?> Handle(GetTripByIdQuery request, CancellationToken ct) =>
+        await db.Trips
+            .AsNoTracking()
+            .Where(t => t.Id == request.TripId)
+            .Select(GetTripsHandler.ProjectToDto)
+            .FirstOrDefaultAsync(ct);
 }
 
 // ── Get Dispatch Board ────────────────────────────────────────────────────
@@ -274,13 +296,18 @@ public sealed record DispatchBoardSummary(int Total, int Dispatched, int Pending
 public sealed record GetDispatchBoardQuery(DateOnly Date, Guid TenantId)
     : IQuery<DispatchBoardDto>;
 
-public sealed class GetDispatchBoardHandler(ITripRepository repo)
+public sealed class GetDispatchBoardHandler(IPlanningDbContext db)
     : IQueryHandler<GetDispatchBoardQuery, DispatchBoardDto>
 {
     public async Task<DispatchBoardDto> Handle(GetDispatchBoardQuery request, CancellationToken ct)
     {
-        var trips = await repo.GetByDateAsync(request.Date, request.TenantId, ct);
-        var dtos = trips.Select(GetTripsHandler.MapDto).ToList();
+        var dtos = await db.Trips
+            .AsNoTracking()
+            .Where(t => DateOnly.FromDateTime(t.PlannedDate) == request.Date
+                     && t.TenantId == request.TenantId)
+            .OrderBy(t => t.TripNumber)
+            .Select(GetTripsHandler.ProjectToDto)
+            .ToListAsync(ct);
         var summary = new DispatchBoardSummary(
             dtos.Count,
             dtos.Count(t => t.Status == "Dispatched"),
