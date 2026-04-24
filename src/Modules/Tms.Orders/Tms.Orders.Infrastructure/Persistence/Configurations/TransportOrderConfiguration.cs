@@ -26,6 +26,9 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
 
         builder.Property(x => x.TenantId).IsRequired();
 
+        builder.Property(x => x.TotalWeight).HasPrecision(12, 3);
+        builder.Property(x => x.TotalVolumeCBM).HasPrecision(12, 4);
+
         builder.OwnsOne(x => x.PickupAddress, a =>
         {
             a.Property(p => p.Name).HasColumnName("PickupAddress_Name").HasMaxLength(200);
@@ -70,7 +73,7 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
         builder.Navigation(o => o.Items)
             .HasField("_items")
             .UsePropertyAccessMode(PropertyAccessMode.PreferField)
-            .AutoInclude();
+            .AutoInclude(); // still needed for Confirm() (_items.Count check) and event handlers
     }
 }
 

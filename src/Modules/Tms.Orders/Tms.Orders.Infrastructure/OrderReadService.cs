@@ -40,12 +40,9 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
                 o.CustomerId,
                 o.Status.ToString(),
                 o.Priority.ToString(),
-                // TotalWeight — SQL subquery per order (avoids loading full Items collection)
-                o.Items.Sum(i => i.Weight.Unit == WeightUnit.Kg
-                    ? i.Weight.Value * i.Quantity
-                    : i.Weight.Value * 1000m * i.Quantity),
-                // TotalVolumeCBM — SQL subquery
-                o.Items.Sum(i => i.VolumeCBM * i.Quantity),
+                // Stored columns — no subquery, direct column read
+                o.TotalWeight,
+                o.TotalVolumeCBM,
                 o.Items.Count,
                 // Address: SQL string concatenation
                 o.PickupAddress.Street + ", " + o.PickupAddress.Province,
@@ -74,10 +71,8 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
                 o.CustomerId,
                 o.Status.ToString(),
                 o.Priority.ToString(),
-                o.Items.Sum(i => i.Weight.Unit == WeightUnit.Kg
-                    ? i.Weight.Value * i.Quantity
-                    : i.Weight.Value * 1000m * i.Quantity),
-                o.Items.Sum(i => i.VolumeCBM * i.Quantity),
+                o.TotalWeight,
+                o.TotalVolumeCBM,
                 o.Items.Count,
                 o.PickupAddress.Street + ", " + o.PickupAddress.Province,
                 o.PickupAddress.Province,

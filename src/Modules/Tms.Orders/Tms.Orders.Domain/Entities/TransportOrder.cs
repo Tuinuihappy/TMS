@@ -27,8 +27,9 @@ public sealed class TransportOrder : AggregateRoot
     private readonly List<OrderItem> _items = [];
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
-    public decimal TotalWeight => _items.Sum(i => i.Weight.ToKg() * i.Quantity);
-    public decimal TotalVolumeCBM => _items.Sum(i => i.VolumeCBM * i.Quantity);
+    // Stored columns — updated by AddItem() to avoid SQL subqueries on every read
+    public decimal TotalWeight { get; private set; }
+    public decimal TotalVolumeCBM { get; private set; }
 
     private TransportOrder() { }  // EF Core
 
@@ -97,6 +98,8 @@ public sealed class TransportOrder : AggregateRoot
             throw new DomainException("Items can only be added to Draft orders.", "ORDER_NOT_DRAFT");
 
         _items.Add(item);
+        TotalWeight += item.Weight.ToKg() * item.Quantity;
+        TotalVolumeCBM += item.VolumeCBM * item.Quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
