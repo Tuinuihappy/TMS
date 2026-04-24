@@ -95,7 +95,11 @@ public sealed class AddStopHandler(ITripRepository repo)
 }
 
 public sealed record AssignResourcesCommand(
-    Guid TripId, Guid VehicleId, Guid DriverId) : ICommand;
+    Guid TripId, Guid VehicleId, Guid DriverId) : ICommand, IAuditableCommand
+{
+    public string ResourceName => "Trip";
+    public string? ResourceId => TripId.ToString();
+}
 
 public sealed class AssignResourcesHandler(
     ITripRepository repo,
@@ -122,7 +126,11 @@ public sealed class AssignResourcesHandler(
 }
 
 // ── Dispatch Trip ─────────────────────────────────────────────────────────
-public sealed record DispatchTripCommand(Guid TripId) : ICommand;
+public sealed record DispatchTripCommand(Guid TripId) : ICommand, IAuditableCommand
+{
+    public string ResourceName => "Trip";
+    public string? ResourceId => TripId.ToString();
+}
 
 public sealed class DispatchTripHandler(
     ITripRepository repo,
@@ -173,7 +181,11 @@ public sealed class CompleteTripHandler(
 }
 
 // ── Cancel Trip ───────────────────────────────────────────────────────────
-public sealed record CancelTripCommand(Guid TripId, string Reason) : ICommand;
+public sealed record CancelTripCommand(Guid TripId, string Reason) : ICommand, IAuditableCommand
+{
+    public string ResourceName => "Trip";
+    public string? ResourceId => TripId.ToString();
+}
 
 public sealed class CancelTripHandler(
     ITripRepository repo,

@@ -19,9 +19,7 @@ public sealed class DocumentsDbContextFactory : IDesignTimeDbContextFactory<Docu
         optionsBuilder.UseNpgsql(
             conn,
             x => x.MigrationsHistoryTable("__EFMigrationsHistory", "doc"));
-        return new DocumentsDbContext(
-            optionsBuilder.Options,
-            Tms.SharedKernel.Application.NullPublisher.Instance);
+        return new DocumentsDbContext(optionsBuilder.Options);
     }
 }
 

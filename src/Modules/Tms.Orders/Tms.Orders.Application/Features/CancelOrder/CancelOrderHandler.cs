@@ -5,7 +5,11 @@ using Tms.SharedKernel.Exceptions;
 
 namespace Tms.Orders.Application.Features.CancelOrder;
 
-public sealed record CancelOrderCommand(Guid OrderId, string Reason) : ICommand;
+public sealed record CancelOrderCommand(Guid OrderId, string Reason) : ICommand, IAuditableCommand
+{
+    public string ResourceName => "TransportOrder";
+    public string? ResourceId => OrderId.ToString();
+}
 
 public sealed class CancelOrderHandler(IOrderRepository orderRepository)
     : ICommandHandler<CancelOrderCommand>

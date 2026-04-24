@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tms.Integration.Domain.Aggregates;
 using Tms.Integration.Domain.Entities;
@@ -7,8 +6,7 @@ using Tms.SharedKernel.Application;
 namespace Tms.Integration.Infrastructure.Persistence;
 
 public sealed class IntegrationDbContext(
-    DbContextOptions<IntegrationDbContext> options,
-    IPublisher publisher) : DbContext(options)
+    DbContextOptions<IntegrationDbContext> options) : DbContext(options)
 {
     public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<OmsOrderSync> OmsOrderSyncs => Set<OmsOrderSync>();

@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tms.Documents.Domain.Aggregates;
 using Tms.Documents.Domain.Entities;
@@ -7,8 +6,7 @@ using Tms.SharedKernel.Application;
 namespace Tms.Documents.Infrastructure.Persistence;
 
 public sealed class DocumentsDbContext(
-    DbContextOptions<DocumentsDbContext> options,
-    IPublisher publisher) : DbContext(options)
+    DbContextOptions<DocumentsDbContext> options) : DbContext(options)
 {
     public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<StoredDocument> StoredDocuments => Set<StoredDocument>();

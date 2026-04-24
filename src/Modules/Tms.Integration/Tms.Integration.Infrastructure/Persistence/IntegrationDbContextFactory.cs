@@ -19,9 +19,7 @@ public sealed class IntegrationDbContextFactory : IDesignTimeDbContextFactory<In
         optionsBuilder.UseNpgsql(
             conn,
             x => x.MigrationsHistoryTable("__EFMigrationsHistory", "itg"));
-        return new IntegrationDbContext(
-            optionsBuilder.Options,
-            Tms.SharedKernel.Application.NullPublisher.Instance);
+        return new IntegrationDbContext(optionsBuilder.Options);
     }
 }
 

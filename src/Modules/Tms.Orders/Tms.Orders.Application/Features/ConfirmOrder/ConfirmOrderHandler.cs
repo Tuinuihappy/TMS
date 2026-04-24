@@ -5,7 +5,11 @@ using Tms.SharedKernel.Exceptions;
 
 namespace Tms.Orders.Application.Features.ConfirmOrder;
 
-public sealed record ConfirmOrderCommand(Guid OrderId) : ICommand;
+public sealed record ConfirmOrderCommand(Guid OrderId) : ICommand, IAuditableCommand
+{
+    public string ResourceName => "TransportOrder";
+    public string? ResourceId => OrderId.ToString();
+}
 
 public sealed class ConfirmOrderHandler(IOrderRepository orderRepository)
     : ICommandHandler<ConfirmOrderCommand>
