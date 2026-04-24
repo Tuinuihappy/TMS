@@ -9,23 +9,24 @@ namespace Tms.Orders.Application.Events.DomainEventHandlers;
 
 public sealed class OrderConfirmedDomainEventHandler(
     IOrderRepository orderRepository,
-    IIntegrationEventPublisher eventPublisher,
+    IOutboxWriter outbox,
     ILogger<OrderConfirmedDomainEventHandler> logger) : INotificationHandler<OrderConfirmedEvent>
 {
     public async Task Handle(OrderConfirmedEvent notification, CancellationToken cancellationToken)
     {
         var order = await orderRepository.GetByIdAsync(notification.OrderId, cancellationToken);
 
-        if (order == null)
+        if (order is null)
         {
             logger.LogWarning("Order {OrderId} not found while handling OrderConfirmedEvent.", notification.OrderId);
             return;
         }
 
-        var integrationEvent = new OrderConfirmedIntegrationEvent(
+        outbox.Stage(new OrderConfirmedIntegrationEvent(
             OrderId: order.Id,
             OrderNumber: order.OrderNumber,
             CustomerId: order.CustomerId,
+            TenantId: order.TenantId,
             Priority: order.Priority.ToString(),
             PickupLatitude: order.PickupAddress?.Latitude ?? 0,
             PickupLongitude: order.PickupAddress?.Longitude ?? 0,
@@ -42,12 +43,10 @@ public sealed class OrderConfirmedDomainEventHandler(
             PickupWindowFrom: order.PickupWindow?.From,
             PickupWindowTo: order.PickupWindow?.To,
             DropoffWindowFrom: order.DropoffWindow?.From,
-            DropoffWindowTo: order.DropoffWindow?.To);
-
-        await eventPublisher.PublishAsync(integrationEvent, cancellationToken);
+            DropoffWindowTo: order.DropoffWindow?.To));
 
         logger.LogInformation(
-            "Published OrderConfirmedIntegrationEvent for Order {OrderNumber}: W={Weight}, V={Volume}, Items={Count}",
+            "Staged OrderConfirmedIntegrationEvent for Order {OrderNumber}: W={Weight}, V={Volume}, Items={Count}",
             order.OrderNumber, order.TotalWeight, order.TotalVolumeCBM, order.Items.Count);
     }
 }

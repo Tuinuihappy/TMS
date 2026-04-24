@@ -48,6 +48,7 @@ public sealed record OrderConfirmedIntegrationEvent(
     Guid OrderId,
     string OrderNumber,
     Guid CustomerId,
+    Guid TenantId,
     string Priority,
     double PickupLatitude,
     double PickupLongitude,

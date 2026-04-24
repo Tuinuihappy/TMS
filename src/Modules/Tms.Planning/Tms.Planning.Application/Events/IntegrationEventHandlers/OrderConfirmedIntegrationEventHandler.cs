@@ -32,7 +32,7 @@ public sealed class OrderConfirmedIntegrationEventHandler(
         var planningOrder = PlanningOrder.Create(
             orderId: notification.OrderId,
             orderNumber: notification.OrderNumber,
-            tenantId: Guid.NewGuid(), // ควรเปลี่ยนเป็นรับจาก Tenant Context/Header แท้จริง
+            tenantId: notification.TenantId,
             pickupLat: notification.PickupLatitude,
             pickupLng: notification.PickupLongitude,
             dropoffLat: notification.DropoffLatitude,

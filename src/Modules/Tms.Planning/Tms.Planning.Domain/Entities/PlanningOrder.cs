@@ -97,4 +97,27 @@ public sealed class PlanningOrder : AggregateRoot
         Status = PlanningOrderStatus.Unplanned;
         CurrentProcessingSessionId = null;
     }
+
+    /// <summary>
+    /// อัพเดท routing constraints เมื่อ Order ถูก Amend
+    /// ถ้า Order ถูก Planned แล้ว ให้ revert กลับ Unplanned เพื่อ re-plan ใหม่
+    /// </summary>
+    public void UpdateConstraints(
+        double pickupLat, double pickupLng,
+        double dropoffLat, double dropoffLng,
+        decimal weight, decimal volume,
+        DateTime? readyTime, DateTime? dueTime)
+    {
+        if (Status == PlanningOrderStatus.Planned)
+            RevertToUnplanned();
+
+        PickupLatitude = pickupLat;
+        PickupLongitude = pickupLng;
+        DropoffLatitude = dropoffLat;
+        DropoffLongitude = dropoffLng;
+        TotalWeight = weight;
+        TotalVolume = volume;
+        ReadyTime = readyTime;
+        DueTime = dueTime;
+    }
 }
