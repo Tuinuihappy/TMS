@@ -115,7 +115,7 @@ public static class RoutePlanEndpoints
         .WithSummary("Re-optimize remaining stops mid-trip execution");
 
         // POST /api/planning/plan-with-split
-        // Auto Planning + Auto Split — ตรวจหาก order เกิน capacity แล้ว split อัตโนมัติก่อน optimize
+        // VRP Planning — optimize orders into route plans via OR-Tools
         var planGroup = app.MapGroup("/api/planning").WithTags("RoutePlanning");
         planGroup.MapPost("/plan-with-split", async (
             PlanWithSplitRequest req, ISender sender, CancellationToken ct) =>
@@ -134,7 +134,7 @@ public static class RoutePlanEndpoints
             return Results.Ok(result);
         })
         .WithName("PlanWithAutoSplit")
-        .WithSummary("Auto Planning + Auto Split — สร้าง Route Plans พร้อม Split Orders ที่เกิน Capacity");
+        .WithSummary("VRP Planning — สร้าง Route Plans ด้วย OR-Tools Solver");
 
         return app;
     }
