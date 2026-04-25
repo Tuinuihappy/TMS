@@ -30,7 +30,9 @@ public sealed record ImportRowError(int Row, string Message);
 public sealed class ImportOrderRow
 {
     public string? CustomerCode { get; set; }
-    public Guid CustomerId { get; set; }
+    // string? แทน Guid เพื่อกัน CsvHelper throw ตอน parse empty/invalid value
+    // Validation เกิดใน CreateOrderFromRow แทน — error จะถูก capture per-row ไม่ crash ทั้ง request
+    public string? CustomerId { get; set; }
     public string? Priority { get; set; }
     public string? PickupName { get; set; }
     public string? PickupStreet { get; set; }
@@ -64,9 +66,9 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         var extension = Path.GetExtension(request.FileName)?.ToLowerInvariant();
         var rows = extension switch
         {
-            ".csv" => ParseCsv(request.FileStream),
+            ".csv"  => ParseCsv(request.FileStream),
             ".xlsx" => ParseExcel(request.FileStream),
-            _ => throw new ArgumentException($"Unsupported file format: {extension}. Use .csv or .xlsx")
+            _       => throw new ArgumentException($"Unsupported file format: {extension}. Use .csv or .xlsx")
         };
 
         var errors = new List<ImportRowError>();
@@ -77,8 +79,7 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
             var rowNum = i + 2; // 1-indexed + header row
             try
             {
-                var row = rows[i];
-                await CreateOrderFromRow(row, request.TenantId, ct);
+                await CreateOrderFromRow(rows[i], request.TenantId, ct);
                 successCount++;
             }
             catch (Exception ex)
@@ -92,8 +93,10 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
 
     private async Task CreateOrderFromRow(ImportOrderRow row, Guid tenantId, CancellationToken ct)
     {
-        if (row.CustomerId == Guid.Empty)
-            throw new ArgumentException("CustomerId is required.");
+        // Validate CustomerId — เกิดใน handler ทำให้ error ถูก capture per-row แทนที่จะ crash ทั้ง request
+        if (!Guid.TryParse(row.CustomerId, out var customerId) || customerId == Guid.Empty)
+            throw new ArgumentException("CustomerId is required and must be a valid non-empty GUID.");
+
         if (string.IsNullOrWhiteSpace(row.ItemDescription))
             throw new ArgumentException("ItemDescription is required.");
 
@@ -113,7 +116,7 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
             ? p : OrderPriority.Normal;
 
         var order = TransportOrder.Create(
-            orderNumber, row.CustomerId, pickup, dropoff, priority, tenantId: tenantId);
+            orderNumber, customerId, pickup, dropoff, priority, tenantId: tenantId);
 
         var item = OrderItem.Create(
             order.Id, row.ItemDescription!,
@@ -130,8 +133,9 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         using var reader = new StreamReader(stream);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            HeaderValidated = null,
+            HeaderValidated  = null,
             MissingFieldFound = null,
+            BadDataFound     = null,   // ไม่ throw บน bad data — validation จัดการเอง
             PrepareHeaderForMatch = args => args.Header.Trim().ToLowerInvariant()
         });
 
@@ -146,7 +150,6 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         var worksheet = workbook.Worksheet(1);
         var rows = new List<ImportOrderRow>();
 
-        // Read headers from row 1
         var headerRow = worksheet.Row(1);
         var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int col = 1; col <= headerRow.LastCellUsed()?.Address.ColumnNumber; col++)
@@ -156,39 +159,38 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
                 headers[header] = col;
         }
 
-        // Read data rows
         var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
         for (int rowIdx = 2; rowIdx <= lastRow; rowIdx++)
         {
             var xlRow = worksheet.Row(rowIdx);
-            // Skip completely empty rows
             if (xlRow.IsEmpty()) continue;
 
             rows.Add(new ImportOrderRow
             {
-                CustomerCode = GetCell(xlRow, headers, "CustomerCode"),
-                CustomerId = Guid.TryParse(GetCell(xlRow, headers, "CustomerId"), out var cid) ? cid : Guid.Empty,
-                Priority = GetCell(xlRow, headers, "Priority"),
-                PickupName = GetCell(xlRow, headers, "PickupName"),
-                PickupStreet = GetCell(xlRow, headers, "PickupStreet"),
-                PickupSubDistrict = GetCell(xlRow, headers, "PickupSubDistrict"),
+                CustomerCode   = GetCell(xlRow, headers, "CustomerCode"),
+                // string? — consistent กับ CSV row; validation เกิดใน CreateOrderFromRow
+                CustomerId     = GetCell(xlRow, headers, "CustomerId"),
+                Priority       = GetCell(xlRow, headers, "Priority"),
+                PickupName     = GetCell(xlRow, headers, "PickupName"),
+                PickupStreet   = GetCell(xlRow, headers, "PickupStreet"),
+                PickupSubDistrict  = GetCell(xlRow, headers, "PickupSubDistrict"),
                 PickupDistrict = GetCell(xlRow, headers, "PickupDistrict"),
                 PickupProvince = GetCell(xlRow, headers, "PickupProvince"),
-                PickupPostalCode = GetCell(xlRow, headers, "PickupPostalCode"),
+                PickupPostalCode   = GetCell(xlRow, headers, "PickupPostalCode"),
                 PickupLatitude = double.TryParse(GetCell(xlRow, headers, "PickupLatitude"), out var plat) ? plat : null,
-                PickupLongitude = double.TryParse(GetCell(xlRow, headers, "PickupLongitude"), out var plng) ? plng : null,
-                DropoffName = GetCell(xlRow, headers, "DropoffName"),
-                DropoffStreet = GetCell(xlRow, headers, "DropoffStreet"),
+                PickupLongitude    = double.TryParse(GetCell(xlRow, headers, "PickupLongitude"), out var plng) ? plng : null,
+                DropoffName    = GetCell(xlRow, headers, "DropoffName"),
+                DropoffStreet  = GetCell(xlRow, headers, "DropoffStreet"),
                 DropoffSubDistrict = GetCell(xlRow, headers, "DropoffSubDistrict"),
-                DropoffDistrict = GetCell(xlRow, headers, "DropoffDistrict"),
-                DropoffProvince = GetCell(xlRow, headers, "DropoffProvince"),
-                DropoffPostalCode = GetCell(xlRow, headers, "DropoffPostalCode"),
-                DropoffLatitude = double.TryParse(GetCell(xlRow, headers, "DropoffLatitude"), out var dlat) ? dlat : null,
-                DropoffLongitude = double.TryParse(GetCell(xlRow, headers, "DropoffLongitude"), out var dlng) ? dlng : null,
-                ItemDescription = GetCell(xlRow, headers, "ItemDescription"),
-                WeightKg = decimal.TryParse(GetCell(xlRow, headers, "WeightKg"), out var w) ? w : 0,
-                VolumeCBM = decimal.TryParse(GetCell(xlRow, headers, "VolumeCBM"), out var v) ? v : 0,
-                Quantity = int.TryParse(GetCell(xlRow, headers, "Quantity"), out var q) ? q : 1
+                DropoffDistrict    = GetCell(xlRow, headers, "DropoffDistrict"),
+                DropoffProvince    = GetCell(xlRow, headers, "DropoffProvince"),
+                DropoffPostalCode  = GetCell(xlRow, headers, "DropoffPostalCode"),
+                DropoffLatitude    = double.TryParse(GetCell(xlRow, headers, "DropoffLatitude"), out var dlat) ? dlat : null,
+                DropoffLongitude   = double.TryParse(GetCell(xlRow, headers, "DropoffLongitude"), out var dlng) ? dlng : null,
+                ItemDescription    = GetCell(xlRow, headers, "ItemDescription"),
+                WeightKg       = decimal.TryParse(GetCell(xlRow, headers, "WeightKg"), out var w) ? w : 0,
+                VolumeCBM      = decimal.TryParse(GetCell(xlRow, headers, "VolumeCBM"), out var v) ? v : 0,
+                Quantity       = int.TryParse(GetCell(xlRow, headers, "Quantity"), out var q) ? q : 1
             });
         }
 
