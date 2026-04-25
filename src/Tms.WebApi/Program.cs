@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Tms.Documents.Infrastructure;
@@ -94,8 +95,10 @@ if (!string.IsNullOrWhiteSpace(jwtAuthority))
 }
 else
 {
-    // Dev mode — TenantContextMiddleware injects identity from X-UserId / X-TenantId headers
-    builder.Services.AddAuthentication();
+    // Dev mode — DevAuthHandler reads identity from TenantContextHolder
+    // (already populated by TenantContextMiddleware from X-UserId / X-TenantId headers)
+    builder.Services.AddAuthentication("Dev")
+        .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("Dev", _ => { });
 }
 builder.Services.AddAuthorization();
 
