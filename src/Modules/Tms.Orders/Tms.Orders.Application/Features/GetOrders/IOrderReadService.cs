@@ -8,7 +8,7 @@ namespace Tms.Orders.Application.Features.GetOrders;
 public interface IOrderReadService
 {
     Task<(IReadOnlyList<OrderDto> Items, int TotalCount)> GetPagedAsync(
-        int page, int pageSize, string? status, Guid? customerId, CancellationToken ct);
+        int page, int pageSize, string? status, Guid? customerId, Guid tenantId, CancellationToken ct);
 
-    Task<OrderDto?> GetByIdAsync(Guid orderId, CancellationToken ct);
+    Task<OrderDto?> GetByIdAsync(Guid orderId, Guid tenantId, CancellationToken ct);
 }

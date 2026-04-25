@@ -13,9 +13,12 @@ namespace Tms.Orders.Infrastructure.ReadServices;
 public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
 {
     public async Task<(IReadOnlyList<OrderDto> Items, int TotalCount)> GetPagedAsync(
-        int page, int pageSize, string? status, Guid? customerId, CancellationToken ct)
+        int page, int pageSize, string? status, Guid? customerId, Guid tenantId, CancellationToken ct)
     {
-        var query = ctx.TransportOrders.AsNoTracking().AsQueryable();
+        var query = ctx.TransportOrders
+            .AsNoTracking()
+            .Where(o => o.TenantId == tenantId)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -40,16 +43,13 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
                 o.CustomerId,
                 o.Status.ToString(),
                 o.Priority.ToString(),
-                // Stored columns — no subquery, direct column read
                 o.TotalWeight,
                 o.TotalVolumeCBM,
                 o.Items.Count,
-                // Address: SQL string concatenation
                 o.PickupAddress.Street + ", " + o.PickupAddress.Province,
                 o.PickupAddress.Province,
                 o.DropoffAddress.Street + ", " + o.DropoffAddress.Province,
                 o.DropoffAddress.Province,
-                // Nullable TimeWindow
                 o.PickupWindow != null ? o.PickupWindow.From : (DateTime?)null,
                 o.PickupWindow != null ? o.PickupWindow.To : (DateTime?)null,
                 o.DropoffWindow != null ? o.DropoffWindow.From : (DateTime?)null,
@@ -61,10 +61,10 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
         return (items, total);
     }
 
-    public async Task<OrderDto?> GetByIdAsync(Guid orderId, CancellationToken ct) =>
+    public async Task<OrderDto?> GetByIdAsync(Guid orderId, Guid tenantId, CancellationToken ct) =>
         await ctx.TransportOrders
             .AsNoTracking()
-            .Where(o => o.Id == orderId)
+            .Where(o => o.Id == orderId && o.TenantId == tenantId)
             .Select(o => new OrderDto(
                 o.Id,
                 o.OrderNumber,

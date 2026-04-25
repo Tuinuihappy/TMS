@@ -17,6 +17,7 @@ public static class OrderEndpoints
         // GET /api/orders — Admin, Planner, Dispatcher, Finance
         group.MapGet("/", async (
             ISender sender,
+            ITenantContext tenant,
             int page = 1,
             int pageSize = 20,
             string? status = null,
@@ -24,7 +25,7 @@ public static class OrderEndpoints
             CancellationToken ct = default) =>
         {
             var result = await sender.Send(
-                new GetOrdersQuery(page, pageSize, status, customerId), ct);
+                new GetOrdersQuery(page, pageSize, status, customerId, tenant.TenantId), ct);
             return Results.Ok(result);
         })
         .WithName("GetOrders")
@@ -32,9 +33,9 @@ public static class OrderEndpoints
         .RequireAuthorization(p => p.RequireRole("Admin", "Planner", "Dispatcher", "Finance"));
 
         // GET /api/orders/{id} — Admin, Planner, Dispatcher, Customer
-        group.MapGet("/{id:guid}", async (Guid id, ISender sender, CancellationToken ct) =>
+        group.MapGet("/{id:guid}", async (Guid id, ISender sender, ITenantContext tenant, CancellationToken ct) =>
         {
-            var result = await sender.Send(new GetOrderByIdQuery(id), ct);
+            var result = await sender.Send(new GetOrderByIdQuery(id, tenant.TenantId), ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         })
         .WithName("GetOrderById")
