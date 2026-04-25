@@ -4,12 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.Distributed;
-using Tms.Orders.Application;
+using Tms.Orders.Application.Abstractions;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Application.Features.GetOrders;
 using Tms.Orders.Domain.Interfaces;
+using Tms.Orders.Infrastructure.Cache;
 using Tms.Orders.Infrastructure.Persistence;
 using Tms.Orders.Infrastructure.Persistence.Repositories;
+using Tms.Orders.Infrastructure.ReadServices;
 using Tms.SharedKernel.Application;
 
 namespace Tms.Orders.Infrastructure;

@@ -1,11 +1,12 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Tms.Execution.Application.Common.Interfaces;
 using Tms.Execution.Domain.Entities;
 using Tms.SharedKernel.Application;
 
 namespace Tms.Execution.Infrastructure.Persistence;
 
-public sealed class ExecutionDbContext(DbContextOptions<ExecutionDbContext> options) : DbContext(options)
+public sealed class ExecutionDbContext(DbContextOptions<ExecutionDbContext> options)
+    : DbContext(options), IExecutionDbContext
 {
     public DbSet<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage> OutboxMessages => Set<Tms.SharedKernel.Infrastructure.Outbox.OutboxMessage>();
     public DbSet<Shipment> Shipments => Set<Shipment>();

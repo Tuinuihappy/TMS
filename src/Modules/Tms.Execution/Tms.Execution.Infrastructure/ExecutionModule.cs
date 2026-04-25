@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tms.Execution.Application.Common.Interfaces;
 using Tms.Execution.Application.Features;
 using Tms.Execution.Application.Features.UpdateShipmentStatus;
 using Tms.Execution.Domain.Interfaces;
@@ -23,6 +24,9 @@ public static class ExecutionModule
                     configuration.GetConnectionString("TmsDb"),
                     npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "exe"))
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+
+        // DbContext interface for CQRS query projection
+        services.AddScoped<IExecutionDbContext>(sp => sp.GetRequiredService<ExecutionDbContext>());
 
         // Repositories
         services.AddScoped<IShipmentRepository, ShipmentRepository>();

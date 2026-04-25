@@ -1,5 +1,5 @@
 using MediatR;
-using Tms.Planning.Application.Features;
+using Tms.Planning.Application.Features.Trips;
 
 namespace Tms.WebApi.Endpoints;
 

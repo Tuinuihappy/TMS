@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Tms.Resources.Application.Events;
+using Tms.Resources.Application.Events.IntegrationEventHandlers;
 using Tms.Resources.Application.Features;
 using Tms.Resources.Domain.Interfaces;
 using Tms.Resources.Infrastructure.Persistence;
@@ -34,7 +34,7 @@ public static class ResourcesModule
         {
             cfg.RegisterServicesFromAssembly(typeof(CreateVehicleHandler).Assembly);
             cfg.RegisterServicesFromAssembly(typeof(ResourcesModule).Assembly);
-            cfg.RegisterServicesFromAssembly(typeof(TripCompletedResourceReleaseHandler).Assembly);
+            cfg.RegisterServicesFromAssembly(typeof(TripDispatchedResourceHandler).Assembly);
         });
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
