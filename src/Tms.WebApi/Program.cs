@@ -57,18 +57,40 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "TMS API", Version = "v1" });
     c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
+    // Production: JWT Bearer
     c.AddSecurityDefinition("Bearer", new()
     {
-        Name        = "Authorization",
-        Type        = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme      = "Bearer",
+        Name         = "Authorization",
+        Type         = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme       = "Bearer",
         BearerFormat = "JWT",
-        In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Prod: Bearer <jwt>  |  Dev: X-UserId + X-TenantId headers"
+        In           = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description  = "Production JWT auth. Format: Bearer {token}"
     });
+
+    // Development: X-TenantId header
+    c.AddSecurityDefinition("X-TenantId", new()
+    {
+        Name        = "X-TenantId",
+        Type        = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Dev mode — Tenant GUID. Default: 00000000-0000-0000-0000-000000000002"
+    });
+
+    // Development: X-UserId header
+    c.AddSecurityDefinition("X-UserId", new()
+    {
+        Name        = "X-UserId",
+        Type        = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        In          = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Dev mode — User GUID. Default: 00000000-0000-0000-0000-000000000001"
+    });
+
     c.AddSecurityRequirement(new()
     {
-        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }] = []
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } }]   = [],
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "X-TenantId" } }] = [],
+        [new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "X-UserId" } }]  = [],
     });
 });
 
