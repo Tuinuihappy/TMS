@@ -1,3 +1,4 @@
+using Tms.Execution.Application;
 using MediatR;
 using Tms.Execution.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -7,7 +8,7 @@ namespace Tms.Execution.Application.Events.IntegrationEventHandlers;
 
 public sealed class VehicleEnteredZoneShipmentHandler(
     IShipmentRepository repo,
-    IOutboxWriter outbox)
+    IExecutionOutboxWriter outbox)
     : INotificationHandler<VehicleEnteredZoneIntegrationEvent>
 {
     public async Task Handle(VehicleEnteredZoneIntegrationEvent ev, CancellationToken ct)

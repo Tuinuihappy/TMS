@@ -1,3 +1,4 @@
+using Tms.Execution.Application;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -34,8 +35,8 @@ public static class ExecutionModule
         services.AddScoped<IBlobStorageService, LocalBlobStorageService>();
 
         // IOutboxWriter — backed by ExecutionDbContext (transactional outbox per module)
-        services.AddScoped<IOutboxWriter>(sp =>
-            new OutboxWriter<ExecutionDbContext>(sp.GetRequiredService<ExecutionDbContext>()));
+        services.AddScoped<IExecutionOutboxWriter>(sp =>
+            new ExecutionOutboxWriter(sp.GetRequiredService<ExecutionDbContext>()));
 
         // MediatR — Application + Infrastructure handlers
         services.AddMediatR(cfg =>

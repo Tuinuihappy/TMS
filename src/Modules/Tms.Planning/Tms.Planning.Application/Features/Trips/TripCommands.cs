@@ -1,3 +1,4 @@
+using Tms.Planning.Application;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -98,7 +99,7 @@ public sealed record DispatchTripCommand(Guid TripId) : ICommand, IAuditableComm
     public string? ResourceId => TripId.ToString();
 }
 
-public sealed class DispatchTripHandler(ITripRepository repo, IOutboxWriter outbox)
+public sealed class DispatchTripHandler(ITripRepository repo, IPlanningOutboxWriter outbox)
     : ICommandHandler<DispatchTripCommand>
 {
     public async Task Handle(DispatchTripCommand request, CancellationToken ct)
@@ -124,7 +125,7 @@ public sealed class DispatchTripHandler(ITripRepository repo, IOutboxWriter outb
 
 public sealed record CompleteTripCommand(Guid TripId) : ICommand;
 
-public sealed class CompleteTripHandler(ITripRepository repo, IOutboxWriter outbox)
+public sealed class CompleteTripHandler(ITripRepository repo, IPlanningOutboxWriter outbox)
     : ICommandHandler<CompleteTripCommand>
 {
     public async Task Handle(CompleteTripCommand request, CancellationToken ct)
@@ -146,7 +147,7 @@ public sealed record CancelTripCommand(Guid TripId, string Reason) : ICommand, I
     public string? ResourceId => TripId.ToString();
 }
 
-public sealed class CancelTripHandler(ITripRepository repo, IOutboxWriter outbox)
+public sealed class CancelTripHandler(ITripRepository repo, IPlanningOutboxWriter outbox)
     : ICommandHandler<CancelTripCommand>
 {
     public async Task Handle(CancelTripCommand request, CancellationToken ct)

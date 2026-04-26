@@ -39,10 +39,6 @@ public static class ResourcesModule
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-        // IOutboxWriter — backed by ResourcesDbContext
-        services.AddScoped<IOutboxWriter>(sp =>
-            new OutboxWriter<ResourcesDbContext>(sp.GetRequiredService<ResourcesDbContext>()));
-
         // Background worker: Check vehicle/driver expiry alerts daily
         services.AddHostedService<ExpiryAlertBackgroundWorker>();
 

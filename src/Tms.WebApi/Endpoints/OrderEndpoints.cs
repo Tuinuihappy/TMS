@@ -107,6 +107,18 @@ public static class OrderEndpoints
             ITenantContext tenant,
             CancellationToken ct) =>
         {
+            // ── Pre-parse validation ───────────────────────────────────────
+            if (file is null || file.Length == 0)
+                return Results.BadRequest(new { error = "No file uploaded or file is empty." });
+
+            const long MaxBytes = 10 * 1024 * 1024; // 10 MB
+            if (file.Length > MaxBytes)
+                return Results.BadRequest(new { error = "File too large. Maximum allowed size is 10 MB." });
+
+            var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            if (ext is not (".csv" or ".xlsx"))
+                return Results.BadRequest(new { error = $"Unsupported file format '{ext}'. Only .csv and .xlsx are accepted." });
+
             await using var stream = file.OpenReadStream();
             var result = await sender.Send(
                 new Tms.Orders.Application.Features.ImportOrder.ImportOrdersCommand(

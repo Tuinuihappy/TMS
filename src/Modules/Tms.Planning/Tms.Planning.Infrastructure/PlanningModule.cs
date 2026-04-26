@@ -1,3 +1,4 @@
+using Tms.Planning.Application;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,8 +39,8 @@ public static class PlanningModule
         services.AddHostedService<AutoPlanningBatchJob>();
 
         // IOutboxWriter — backed by PlanningDbContext (transactional outbox per module)
-        services.AddScoped<IOutboxWriter>(sp =>
-            new OutboxWriter<PlanningDbContext>(sp.GetRequiredService<PlanningDbContext>()));
+        services.AddScoped<IPlanningOutboxWriter>(sp =>
+            new PlanningOutboxWriter(sp.GetRequiredService<PlanningDbContext>()));
 
         services.AddMediatR(cfg =>
         {

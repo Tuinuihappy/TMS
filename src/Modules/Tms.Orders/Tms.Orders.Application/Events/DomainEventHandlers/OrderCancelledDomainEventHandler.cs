@@ -1,3 +1,4 @@
+using Tms.Orders.Application;
 using MediatR;
 using Tms.Orders.Domain.Events;
 using Tms.SharedKernel.Application;
@@ -6,7 +7,7 @@ using Tms.SharedKernel.IntegrationEvents;
 namespace Tms.Orders.Application.Events.DomainEventHandlers;
 
 public sealed class OrderCancelledDomainEventHandler(
-    IOutboxWriter outbox) : INotificationHandler<OrderCancelledEvent>
+    IOrdersOutboxWriter outbox) : INotificationHandler<OrderCancelledEvent>
 {
     public Task Handle(OrderCancelledEvent notification, CancellationToken cancellationToken)
     {

@@ -1,3 +1,4 @@
+using Tms.Execution.Application;
 using Tms.Execution.Domain.Entities;
 using Tms.Execution.Domain.Interfaces;
 using Tms.SharedKernel.Application;
@@ -21,7 +22,7 @@ public sealed record PickUpShipmentCommand(Guid ShipmentId) : ICommand;
 
 public sealed class PickUpShipmentHandler(
     IShipmentRepository repo,
-    IOutboxWriter outbox)
+    IExecutionOutboxWriter outbox)
     : ICommandHandler<PickUpShipmentCommand>
 {
     public async Task Handle(PickUpShipmentCommand request, CancellationToken ct)
@@ -42,7 +43,7 @@ public sealed record ArriveShipmentCommand(Guid ShipmentId) : ICommand;
 
 public sealed class ArriveShipmentHandler(
     IShipmentRepository repo,
-    IOutboxWriter outbox)
+    IExecutionOutboxWriter outbox)
     : ICommandHandler<ArriveShipmentCommand>
 {
     public async Task Handle(ArriveShipmentCommand request, CancellationToken ct)
@@ -67,7 +68,7 @@ public sealed record DeliverShipmentCommand(
 
 public sealed class DeliverShipmentHandler(
     IShipmentRepository repo,
-    IOutboxWriter outbox)
+    IExecutionOutboxWriter outbox)
     : ICommandHandler<DeliverShipmentCommand>
 {
     public async Task Handle(DeliverShipmentCommand request, CancellationToken ct)
@@ -111,7 +112,7 @@ public sealed record PartialDeliverShipmentCommand(
 
 public sealed class PartialDeliverShipmentHandler(
     IShipmentRepository repo,
-    IOutboxWriter outbox)
+    IExecutionOutboxWriter outbox)
     : ICommandHandler<PartialDeliverShipmentCommand>
 {
     public async Task Handle(PartialDeliverShipmentCommand request, CancellationToken ct)

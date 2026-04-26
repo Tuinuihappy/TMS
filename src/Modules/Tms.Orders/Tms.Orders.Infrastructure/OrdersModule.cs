@@ -1,3 +1,4 @@
+using Tms.Orders.Application;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -54,8 +55,8 @@ public static class OrdersModule
                 typeof(CreateOrderHandler).Assembly));
 
         // IOutboxWriter — backed by OrdersDbContext
-        services.AddScoped<IOutboxWriter>(sp =>
-            new OutboxWriter<OrdersDbContext>(sp.GetRequiredService<OrdersDbContext>()));
+        services.AddScoped<IOrdersOutboxWriter>(sp =>
+            new OrdersOutboxWriter(sp.GetRequiredService<OrdersDbContext>()));
 
 
         // FluentValidation

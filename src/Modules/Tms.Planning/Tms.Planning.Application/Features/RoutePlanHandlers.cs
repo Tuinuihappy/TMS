@@ -1,3 +1,4 @@
+using Tms.Planning.Application;
 using Tms.Planning.Application.Solvers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -264,7 +265,7 @@ public sealed record LockRoutePlanCommand(Guid PlanId) : ICommand;
 
 public sealed class LockRoutePlanHandler(
     IRoutePlanRepository repo,
-    IOutboxWriter outbox)
+    IPlanningOutboxWriter outbox)
     : ICommandHandler<LockRoutePlanCommand>
 {
     public async Task Handle(LockRoutePlanCommand req, CancellationToken ct)

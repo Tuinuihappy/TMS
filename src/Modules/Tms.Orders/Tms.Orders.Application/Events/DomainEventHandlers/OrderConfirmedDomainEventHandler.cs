@@ -1,3 +1,4 @@
+using Tms.Orders.Application;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Tms.Orders.Domain.Events;
@@ -9,7 +10,7 @@ namespace Tms.Orders.Application.Events.DomainEventHandlers;
 
 public sealed class OrderConfirmedDomainEventHandler(
     IOrderRepository orderRepository,
-    IOutboxWriter outbox,
+    IOrdersOutboxWriter outbox,
     ILogger<OrderConfirmedDomainEventHandler> logger) : INotificationHandler<OrderConfirmedEvent>
 {
     public async Task Handle(OrderConfirmedEvent notification, CancellationToken cancellationToken)

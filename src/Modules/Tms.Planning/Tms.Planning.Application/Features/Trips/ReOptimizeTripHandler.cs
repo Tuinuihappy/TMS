@@ -1,3 +1,4 @@
+using Tms.Planning.Application;
 using Tms.Planning.Application.Solvers;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
@@ -23,7 +24,7 @@ public sealed record ReOptimizeTripCommand(
 public sealed class ReOptimizeTripHandler(
     ITripRepository repo,
     PdpRouteOptimizer optimizer,
-    IOutboxWriter outbox)
+    IPlanningOutboxWriter outbox)
     : ICommandHandler<ReOptimizeTripCommand>
 {
     public async Task Handle(ReOptimizeTripCommand req, CancellationToken ct)

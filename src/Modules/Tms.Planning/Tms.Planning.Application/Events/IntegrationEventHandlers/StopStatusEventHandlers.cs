@@ -1,3 +1,4 @@
+using Tms.Planning.Application;
 using MediatR;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Domain.Interfaces;
@@ -48,7 +49,7 @@ public sealed class ShipmentArrivedAtDropoffStopHandler(ITripRepository repo)
 
 public sealed class ShipmentDeliveredStopHandler(
     ITripRepository repo,
-    IOutboxWriter outbox)
+    IPlanningOutboxWriter outbox)
     : INotificationHandler<ShipmentDeliveredStopIntegrationEvent>
 {
     public async Task Handle(ShipmentDeliveredStopIntegrationEvent ev, CancellationToken ct)

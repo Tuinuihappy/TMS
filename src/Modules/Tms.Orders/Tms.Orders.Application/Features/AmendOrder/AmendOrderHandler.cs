@@ -1,3 +1,4 @@
+using Tms.Orders.Application;
 using Tms.Orders.Application.Abstractions;
 using Tms.Orders.Application.Features.CreateOrder;
 using Tms.Orders.Domain.Entities;
@@ -25,7 +26,7 @@ public sealed record AmendOrderCommand(
 
 public sealed class AmendOrderHandler(
     IOrderRepository orderRepository,
-    IOutboxWriter outbox,
+    IOrdersOutboxWriter outbox,
     IOrderCacheInvalidator cacheInvalidator)
     : ICommandHandler<AmendOrderCommand>
 {
