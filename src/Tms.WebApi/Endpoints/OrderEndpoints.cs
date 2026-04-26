@@ -53,11 +53,7 @@ public static class OrderEndpoints
                 request.CustomerId,
                 tenant.TenantId,
                 request.OrderNumber,
-                request.PickupAddress,
-                request.DropoffAddress,
-                request.Items,
-                request.PickupWindow,
-                request.DropoffWindow,
+                request.Stops,
                 request.Priority,
                 request.Notes);
 
@@ -102,7 +98,7 @@ public static class OrderEndpoints
 
         // POST /api/orders/import — Admin, Planner
         group.MapPost("/import", async (
-            IFormFile file,
+            IFormFile? file,
             ISender sender,
             ITenantContext tenant,
             CancellationToken ct) =>
@@ -139,11 +135,7 @@ public sealed record CancelOrderRequest(string Reason);
 public sealed record CreateOrderRequest(
     Guid CustomerId,
     string? OrderNumber,
-    AddressDto PickupAddress,
-    AddressDto DropoffAddress,
-    List<OrderItemDto> Items,
-    TimeWindowDto? PickupWindow = null,
-    TimeWindowDto? DropoffWindow = null,
+    List<OrderStopDto> Stops,
     string? Priority = "Normal",
     string? Notes = null
 );

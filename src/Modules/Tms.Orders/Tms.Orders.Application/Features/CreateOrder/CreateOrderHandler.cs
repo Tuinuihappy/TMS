@@ -14,56 +14,57 @@ public sealed class CreateOrderHandler(IOrderRepository orderRepository)
         var orderNumber = request.OrderNumber
             ?? await orderRepository.GenerateOrderNumberAsync(cancellationToken);
 
-        var pickup = Address.Create(
-            request.PickupAddress.Street,
-            request.PickupAddress.SubDistrict,
-            request.PickupAddress.District,
-            request.PickupAddress.Province,
-            request.PickupAddress.PostalCode,
-            request.PickupAddress.Latitude,
-            request.PickupAddress.Longitude,
-            request.PickupAddress.Name);
-
-        var dropoff = Address.Create(
-            request.DropoffAddress.Street,
-            request.DropoffAddress.SubDistrict,
-            request.DropoffAddress.District,
-            request.DropoffAddress.Province,
-            request.DropoffAddress.PostalCode,
-            request.DropoffAddress.Latitude,
-            request.DropoffAddress.Longitude,
-            request.DropoffAddress.Name);
-
         var priority = Enum.TryParse<OrderPriority>(request.Priority, true, out var p)
             ? p : OrderPriority.Normal;
 
-        var pickupWindow = request.PickupWindow is not null
-            ? TimeWindow.Create(request.PickupWindow.From, request.PickupWindow.To)
-            : null;
-
-        var dropoffWindow = request.DropoffWindow is not null
-            ? TimeWindow.Create(request.DropoffWindow.From, request.DropoffWindow.To)
-            : null;
-
         var order = TransportOrder.Create(
-            orderNumber, request.CustomerId,
-            pickup, dropoff,
-            priority, pickupWindow, dropoffWindow,
-            request.Notes, request.TenantId);
+            orderNumber, request.CustomerId, priority, request.Notes, request.TenantId);
 
-        foreach (var itemDto in request.Items)
+        int sequence = 1;
+        foreach (var stopDto in request.Stops)
         {
-            var item = OrderItem.Create(
-                order.Id,
-                itemDto.Description,
-                itemDto.WeightKg,
-                itemDto.VolumeCBM,
-                itemDto.Quantity,
-                sku: itemDto.Sku,
-                isDangerousGoods: itemDto.IsDangerousGoods,
-                unNumber: itemDto.UNNumber,
-                dgClass: itemDto.DGClass);
-            order.AddItem(item);
+            var seq = stopDto.Sequence > 0 ? stopDto.Sequence : sequence++;
+
+            var pickup = Address.Create(
+                stopDto.PickupAddress.Street, stopDto.PickupAddress.SubDistrict,
+                stopDto.PickupAddress.District, stopDto.PickupAddress.Province,
+                stopDto.PickupAddress.PostalCode,
+                stopDto.PickupAddress.Latitude, stopDto.PickupAddress.Longitude,
+                stopDto.PickupAddress.Name);
+
+            var dropoff = Address.Create(
+                stopDto.DropoffAddress.Street, stopDto.DropoffAddress.SubDistrict,
+                stopDto.DropoffAddress.District, stopDto.DropoffAddress.Province,
+                stopDto.DropoffAddress.PostalCode,
+                stopDto.DropoffAddress.Latitude, stopDto.DropoffAddress.Longitude,
+                stopDto.DropoffAddress.Name);
+
+            var pickupWindow = stopDto.PickupWindow is not null
+                ? TimeWindow.Create(stopDto.PickupWindow.From, stopDto.PickupWindow.To)
+                : null;
+
+            var dropoffWindow = stopDto.DropoffWindow is not null
+                ? TimeWindow.Create(stopDto.DropoffWindow.From, stopDto.DropoffWindow.To)
+                : null;
+
+            var stop = OrderStop.Create(order.Id, seq, pickup, dropoff, pickupWindow, dropoffWindow);
+
+            foreach (var itemDto in stopDto.Items)
+            {
+                var item = OrderItem.Create(
+                    stop.Id,
+                    itemDto.Description,
+                    itemDto.WeightKg,
+                    itemDto.VolumeCBM,
+                    itemDto.Quantity,
+                    sku: itemDto.Sku,
+                    isDangerousGoods: itemDto.IsDangerousGoods,
+                    unNumber: itemDto.UNNumber,
+                    dgClass: itemDto.DGClass);
+                stop.AddItem(item);
+            }
+
+            order.AddStop(stop);
         }
 
         await orderRepository.AddAsync(order, cancellationToken);

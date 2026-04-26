@@ -33,7 +33,7 @@ public class RoutePlanTests
     {
         // Arrange
         var plan = CreateSubject();
-        var stop = RouteStop.Create(plan.Id, 1, Guid.NewGuid(), "Pickup", 13, 100, null);
+        var stop = RouteStop.Create(plan.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "Pickup", 13, 100, null);
 
         // Act
         plan.AddStop(stop);
@@ -48,8 +48,8 @@ public class RoutePlanTests
     {
         // Arrange
         var plan = CreateSubject();
-        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), "Pickup", 13, 100, null));
-        plan.AddStop(RouteStop.Create(plan.Id, 2, Guid.NewGuid(), "Dropoff", 14, 101, null));
+        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "Pickup", 13, 100, null));
+        plan.AddStop(RouteStop.Create(plan.Id, 2, Guid.NewGuid(), Guid.NewGuid(), "Dropoff", 14, 101, null));
 
         // Act
         plan.Lock();
@@ -63,7 +63,7 @@ public class RoutePlanTests
     {
         // Arrange
         var plan = CreateSubject();
-        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), "Pickup", 13, 100, null));
+        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "Pickup", 13, 100, null));
 
         // Act
         var act = () => plan.Lock();
@@ -91,8 +91,8 @@ public class RoutePlanTests
     {
         // Arrange
         var plan = CreateSubject();
-        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), "Pickup", 13, 100, null));
-        plan.AddStop(RouteStop.Create(plan.Id, 2, Guid.NewGuid(), "Dropoff", 14, 101, null));
+        plan.AddStop(RouteStop.Create(plan.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "Pickup", 13, 100, null));
+        plan.AddStop(RouteStop.Create(plan.Id, 2, Guid.NewGuid(), Guid.NewGuid(), "Dropoff", 14, 101, null));
         plan.Lock();
 
         // Act

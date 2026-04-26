@@ -10,7 +10,8 @@ namespace Tms.Planning.Domain.Entities;
 /// </summary>
 public sealed class PlanningOrder : AggregateRoot
 {
-    public Guid OrderId { get; private set; } // Map to Tms.Orders.TransportOrder
+    public Guid OrderId { get; private set; }     // Map to Tms.Orders.TransportOrder
+    public Guid OrderStopId { get; private set; } // Map to Tms.Orders.OrderStop — 1 PlanningOrder per stop
     public string OrderNumber { get; private set; } = string.Empty;
     public Guid TenantId { get; private set; }
     
@@ -35,7 +36,8 @@ public sealed class PlanningOrder : AggregateRoot
     private PlanningOrder() { } // EF Core
 
     public static PlanningOrder Create(
-        Guid orderId, 
+        Guid orderId,
+        Guid orderStopId,
         string orderNumber,
         Guid tenantId,
         double pickupLat, double pickupLng,
@@ -47,6 +49,7 @@ public sealed class PlanningOrder : AggregateRoot
         return new PlanningOrder
         {
             OrderId = orderId,
+            OrderStopId = orderStopId,
             OrderNumber = orderNumber,
             TenantId = tenantId,
             PickupLatitude = pickupLat,

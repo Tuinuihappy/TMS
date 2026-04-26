@@ -18,6 +18,7 @@ public static class RoutePlanEndpoints
             var orders = req.Orders.Select(o =>
                 new PdpOrderInput(
                     o.OrderId,
+                    o.OrderStopId,
                     o.PickupLat, o.PickupLng,
                     o.DropoffLat, o.DropoffLng,
                     o.WeightKg,
@@ -140,9 +141,10 @@ public static class RoutePlanEndpoints
     }
 }
 
-/// <summary>PDP Order input — ต่อ Order มีทั้ง Pickup และ Dropoff location + volume + time windows</summary>
+/// <summary>PDP input per OrderStop — มีทั้ง Pickup และ Dropoff + volume + time windows</summary>
 public sealed record PdpOrderRequest(
     Guid OrderId,
+    Guid OrderStopId,
     double PickupLat,
     double PickupLng,
     double DropoffLat,

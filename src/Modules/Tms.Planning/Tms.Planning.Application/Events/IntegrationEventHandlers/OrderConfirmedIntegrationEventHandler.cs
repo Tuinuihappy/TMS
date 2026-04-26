@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Tms.Planning.Domain.Entities;
 using Tms.Planning.Application.Common.Interfaces;
@@ -8,9 +9,7 @@ using Tms.SharedKernel.IntegrationEvents;
 namespace Tms.Planning.Application.Events.IntegrationEventHandlers;
 
 /// <summary>
-/// Trigger แบบ A (Real-time): เมื่อ Order Management ส่งสถานะว่า Order เป็น Confirmed แล้ว
-/// 모ดูล Planning จะรับทราบ และสร้าง PlanningOrder (Read Model) เป็น Unplanned มารอในตะกร้า
-/// หากเป็น Order VIP หรือ Priority สูง สามารถจุดชนวน Auto Plan ต่อไปได้ทันที
+/// เมื่อ Order Confirmed → สร้าง 1 PlanningOrder ต่อ OrderStop เข้า Planning Pool
 /// </summary>
 public sealed class OrderConfirmedIntegrationEventHandler(
     IPlanningDbContext dbContext,
@@ -18,39 +17,49 @@ public sealed class OrderConfirmedIntegrationEventHandler(
 {
     public async Task Handle(OrderConfirmedIntegrationEvent notification, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Planning Module received OrderConfirmedIntegrationEvent for Order: {OrderNumber}", notification.OrderNumber);
+        logger.LogInformation(
+            "Planning received OrderConfirmed for {OrderNumber} — {StopCount} stop(s)",
+            notification.OrderNumber, notification.Stops.Count);
 
-        // 1. เช็คว่าเคสดึงเข้ามาซ้ำไหม (Idempotency พื้นฐาน)
-        var exists = dbContext.PlanningOrders.Any(o => o.OrderId == notification.OrderId);
-        if (exists)
+        // Idempotency: ดึง StopId ที่มี PlanningOrder อยู่แล้ว
+        var existingStopIds = await dbContext.PlanningOrders
+            .Where(o => o.OrderId == notification.OrderId)
+            .Select(o => o.OrderStopId)
+            .ToHashSetAsync(cancellationToken);
+
+        var newOrders = new List<PlanningOrder>();
+
+        foreach (var stop in notification.Stops)
         {
-            logger.LogWarning("PlanningOrder for {OrderId} already exists. Skipping.", notification.OrderId);
-            return;
+            if (existingStopIds.Contains(stop.StopId))
+            {
+                logger.LogWarning(
+                    "PlanningOrder for Stop {StopId} already exists. Skipping.", stop.StopId);
+                continue;
+            }
+
+            newOrders.Add(PlanningOrder.Create(
+                orderId: notification.OrderId,
+                orderStopId: stop.StopId,
+                orderNumber: notification.OrderNumber,
+                tenantId: notification.TenantId,
+                pickupLat: stop.PickupLatitude,
+                pickupLng: stop.PickupLongitude,
+                dropoffLat: stop.DropoffLatitude,
+                dropoffLng: stop.DropoffLongitude,
+                weight: stop.WeightKg,
+                volume: stop.VolumeCBM,
+                readyTime: stop.ReadyTime,
+                dueTime: stop.DueTime));
         }
 
-        // 2. Insert เข้า Planning Schema โดยอาศัยข้อมูล Constraints ที่ติดมากับ Event จาก Orders Module
-        var planningOrder = PlanningOrder.Create(
-            orderId: notification.OrderId,
-            orderNumber: notification.OrderNumber,
-            tenantId: notification.TenantId,
-            pickupLat: notification.PickupLatitude,
-            pickupLng: notification.PickupLongitude,
-            dropoffLat: notification.DropoffLatitude,
-            dropoffLng: notification.DropoffLongitude,
-            weight: notification.TotalWeight,
-            volume: notification.TotalVolumeCBM,
-            readyTime: notification.ReadyTime,
-            dueTime: notification.DueTime
-        );
+        if (newOrders.Count == 0) return;
 
-        dbContext.PlanningOrders.Add(planningOrder);
+        dbContext.PlanningOrders.AddRange(newOrders);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Successfully inserted PlanningOrder {OrderNumber} as Unplanned into Planning Pool.", notification.OrderNumber);
-        
-        // --- 
-        // Real-Time Trigger (Optional): 
-        // ถ้าระบบต้องการให้ Plan ทันทีแบบไม่ต้องรอ Batch ถัดไป ก็สามารถโยนคำสั่ง StartAutoOptimizationCommand ได้ตรงนี้
-        // ---
+        logger.LogInformation(
+            "Inserted {Count} PlanningOrder(s) for Order {OrderNumber}.",
+            newOrders.Count, notification.OrderNumber);
     }
 }

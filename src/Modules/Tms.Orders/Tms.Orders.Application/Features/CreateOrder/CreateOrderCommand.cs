@@ -32,15 +32,19 @@ public sealed record AddressDto(
 
 public sealed record TimeWindowDto(DateTime From, DateTime To);
 
+public sealed record OrderStopDto(
+    AddressDto PickupAddress,
+    AddressDto DropoffAddress,
+    List<OrderItemDto> Items,
+    int Sequence = 0,
+    TimeWindowDto? PickupWindow = null,
+    TimeWindowDto? DropoffWindow = null);
+
 public sealed record CreateOrderCommand(
     Guid CustomerId,
     Guid TenantId,
     string? OrderNumber,
-    AddressDto PickupAddress,
-    AddressDto DropoffAddress,
-    List<OrderItemDto> Items,
-    TimeWindowDto? PickupWindow = null,
-    TimeWindowDto? DropoffWindow = null,
+    List<OrderStopDto> Stops,
     string? Priority = "Normal",
     string? Notes = null
 ) : ICommand<CreateOrderResponse>;

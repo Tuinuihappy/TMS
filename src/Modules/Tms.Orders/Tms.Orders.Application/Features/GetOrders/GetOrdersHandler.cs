@@ -2,6 +2,18 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Orders.Application.Features.GetOrders;
 
+public sealed record OrderStopSummaryDto(
+    Guid StopId,
+    int Sequence,
+    string PickupSummary,
+    string PickupProvince,
+    string DropoffSummary,
+    string DropoffProvince,
+    DateTime? PickupWindowFrom,
+    DateTime? PickupWindowTo,
+    DateTime? DropoffWindowFrom,
+    DateTime? DropoffWindowTo);
+
 public sealed record OrderDto(
     Guid Id,
     string OrderNumber,
@@ -10,15 +22,9 @@ public sealed record OrderDto(
     string Priority,
     decimal TotalWeight,
     decimal TotalVolumeCBM,
+    int StopCount,
     int ItemCount,
-    string PickupAddress,
-    string PickupProvince,
-    string DropoffAddress,
-    string DropoffProvince,
-    DateTime? PickupWindowFrom,
-    DateTime? PickupWindowTo,
-    DateTime? DropoffWindowFrom,
-    DateTime? DropoffWindowTo,
+    List<OrderStopSummaryDto> Stops,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 

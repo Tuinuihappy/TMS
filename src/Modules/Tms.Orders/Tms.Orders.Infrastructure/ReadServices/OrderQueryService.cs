@@ -4,10 +4,6 @@ using Tms.SharedKernel.Application;
 
 namespace Tms.Orders.Infrastructure.ReadServices;
 
-/// <summary>
-/// Implementation of IOrderQueryService backed by OrdersDbContext
-/// ให้ Planning module เรียกใช้ผ่าน DI โดยไม่ต้อง reference Orders.Application/Domain โดยตรง
-/// </summary>
 public sealed class OrderQueryService(OrdersDbContext context) : IOrderQueryService
 {
     public async Task<OrderSnapshot?> GetOrderAsync(Guid orderId, CancellationToken ct = default)
@@ -36,14 +32,25 @@ public sealed class OrderQueryService(OrdersDbContext context) : IOrderQueryServ
         o.Id,
         o.OrderNumber,
         o.Status.ToString(),
-        o.PickupAddress.Latitude,
-        o.PickupAddress.Longitude,
-        o.DropoffAddress.Latitude,
-        o.DropoffAddress.Longitude,
         o.TotalWeight,
         o.TotalVolumeCBM,
-        o.PickupWindow?.From,
-        o.PickupWindow?.To,
-        o.DropoffWindow?.From,
-        o.DropoffWindow?.To);
+        o.Stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new OrderStopConstraint(
+                StopId: s.Id,
+                Sequence: s.Sequence,
+                PickupLat: s.PickupAddress?.Latitude ?? 0,
+                PickupLng: s.PickupAddress?.Longitude ?? 0,
+                DropoffLat: s.DropoffAddress?.Latitude ?? 0,
+                DropoffLng: s.DropoffAddress?.Longitude ?? 0,
+                WeightKg: s.StopTotalWeight,
+                VolumeCBM: s.StopTotalVolumeCBM,
+                ReadyTime: s.PickupWindow?.From,
+                DueTime: s.DropoffWindow?.To,
+                PickupWindowFrom: s.PickupWindow?.From,
+                PickupWindowTo: s.PickupWindow?.To,
+                DropoffWindowFrom: s.DropoffWindow?.From,
+                DropoffWindowTo: s.DropoffWindow?.To))
+            .ToList()
+            .AsReadOnly());
 }

@@ -12,10 +12,6 @@ public sealed class TransportOrder : AggregateRoot
     public Guid CustomerId { get; private set; }
     public OrderStatus Status { get; private set; }
     public OrderPriority Priority { get; private set; }
-    public Address PickupAddress { get; private set; } = null!;
-    public Address DropoffAddress { get; private set; } = null!;
-    public TimeWindow? PickupWindow { get; private set; }
-    public TimeWindow? DropoffWindow { get; private set; }
     public Guid TenantId { get; private set; }
     public string? Notes { get; private set; }
     public string? CancelReason { get; private set; }
@@ -24,10 +20,10 @@ public sealed class TransportOrder : AggregateRoot
     public DateTime? UpdatedAt { get; private set; }
     public DateTime? ConfirmedAt { get; private set; }
 
-    private readonly List<OrderItem> _items = [];
-    public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
+    private readonly List<OrderStop> _stops = [];
+    public IReadOnlyCollection<OrderStop> Stops => _stops.AsReadOnly();
 
-    // Stored columns — updated by AddItem() to avoid SQL subqueries on every read
+    // Stored columns — updated by AddStop/AmendStop to avoid SQL subqueries on every read
     public decimal TotalWeight { get; private set; }
     public decimal TotalVolumeCBM { get; private set; }
 
@@ -38,20 +34,11 @@ public sealed class TransportOrder : AggregateRoot
     public static TransportOrder Create(
         string orderNumber,
         Guid customerId,
-        Address pickupAddress,
-        Address dropoffAddress,
         OrderPriority priority = OrderPriority.Normal,
-        TimeWindow? pickupWindow = null,
-        TimeWindow? dropoffWindow = null,
         string? notes = null,
         Guid tenantId = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
-
-        if (pickupWindow is not null && dropoffWindow is not null &&
-            dropoffWindow.From <= pickupWindow.From)
-            throw new DomainException(
-                "Dropoff window must start after pickup window.", "INVALID_TIME_WINDOWS");
 
         var order = new TransportOrder
         {
@@ -60,10 +47,6 @@ public sealed class TransportOrder : AggregateRoot
             TenantId = tenantId,
             Status = OrderStatus.Draft,
             Priority = priority,
-            PickupAddress = pickupAddress,
-            DropoffAddress = dropoffAddress,
-            PickupWindow = pickupWindow,
-            DropoffWindow = dropoffWindow,
             Notes = notes,
             CreatedAt = DateTime.UtcNow
         };
@@ -75,40 +58,82 @@ public sealed class TransportOrder : AggregateRoot
     public static TransportOrder CreateWithUser(
         string orderNumber,
         Guid customerId,
-        Address pickupAddress,
-        Address dropoffAddress,
         Guid createdBy,
         OrderPriority priority = OrderPriority.Normal,
-        TimeWindow? pickupWindow = null,
-        TimeWindow? dropoffWindow = null,
         string? notes = null,
         Guid tenantId = default)
     {
-        var order = Create(orderNumber, customerId, pickupAddress, dropoffAddress,
-            priority, pickupWindow, dropoffWindow, notes, tenantId);
+        var order = Create(orderNumber, customerId, priority, notes, tenantId);
         order.CreatedBy = createdBy;
         return order;
     }
 
-    // ── Mutations ─────────────────────────────────────────────────────────────
+    // ── Stop Mutations ────────────────────────────────────────────────────────
 
-    public void AddItem(OrderItem item)
+    public void AddStop(OrderStop stop)
     {
         if (Status != OrderStatus.Draft)
-            throw new DomainException("Items can only be added to Draft orders.", "ORDER_NOT_DRAFT");
+            throw new DomainException("Stops can only be added to Draft orders.", "ORDER_NOT_DRAFT");
 
-        _items.Add(item);
-        TotalWeight += item.Weight.ToKg() * item.Quantity;
-        TotalVolumeCBM += item.VolumeCBM * item.Quantity;
+        _stops.Add(stop);
+        TotalWeight += stop.StopTotalWeight;
+        TotalVolumeCBM += stop.StopTotalVolumeCBM;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AmendStop(
+        Guid stopId,
+        Address? newPickup = null,
+        Address? newDropoff = null,
+        TimeWindow? newPickupWindow = null,
+        TimeWindow? newDropoffWindow = null)
+    {
+        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+            throw new DomainException(
+                $"Cannot amend stop on order with status '{Status}'. Only Draft or Confirmed orders can be amended.",
+                "ORDER_CANNOT_AMEND");
+
+        var stop = _stops.FirstOrDefault(s => s.Id == stopId)
+            ?? throw new NotFoundException(nameof(OrderStop), stopId);
+
+        stop.Amend(newPickup, newDropoff, newPickupWindow, newDropoffWindow);
+
+        // Recompute stored totals from all stops
+        TotalWeight = _stops.Sum(s => s.StopTotalWeight);
+        TotalVolumeCBM = _stops.Sum(s => s.StopTotalVolumeCBM);
+
+        if (Status == OrderStatus.Confirmed)
+            Status = OrderStatus.Draft;
+
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new OrderAmendedEvent(Id, OrderNumber));
+    }
+
+    // ── Order-level Mutations ─────────────────────────────────────────────────
+
+    public void AmendDetails(string? newNotes = null, OrderPriority? newPriority = null)
+    {
+        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
+            throw new DomainException(
+                $"Cannot amend order with status '{Status}'. Only Draft or Confirmed orders can be amended.",
+                "ORDER_CANNOT_AMEND");
+
+        if (newNotes is not null) Notes = newNotes;
+        if (newPriority.HasValue) Priority = newPriority.Value;
+
+        if (Status == OrderStatus.Confirmed)
+            Status = OrderStatus.Draft;
+
+        UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new OrderAmendedEvent(Id, OrderNumber));
     }
 
     public void Confirm()
     {
         if (Status != OrderStatus.Draft)
             throw new DomainException("Only Draft orders can be confirmed.", "ORDER_CANNOT_CONFIRM");
-        if (_items.Count == 0)
-            throw new DomainException("Order must have at least one item.", "ORDER_NO_ITEMS");
+        if (!_stops.Any() || _stops.All(s => !s.Items.Any()))
+            throw new DomainException("Order must have at least one stop with at least one item.", "ORDER_NO_ITEMS");
 
         Status = OrderStatus.Confirmed;
         ConfirmedAt = DateTime.UtcNow;
@@ -163,33 +188,5 @@ public sealed class TransportOrder : AggregateRoot
 
         Status = OrderStatus.Completed;
         UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>Amend Draft or Confirmed order — update pickup/dropoff/notes</summary>
-    public void Amend(
-        Address? newPickup = null,
-        Address? newDropoff = null,
-        TimeWindow? newPickupWindow = null,
-        TimeWindow? newDropoffWindow = null,
-        string? newNotes = null,
-        OrderPriority? newPriority = null)
-    {
-        if (Status is not (OrderStatus.Draft or OrderStatus.Confirmed))
-            throw new DomainException(
-                $"Cannot amend order with status '{Status}'. Only Draft or Confirmed orders can be amended.",
-                "ORDER_CANNOT_AMEND");
-
-        if (newPickup is not null) PickupAddress = newPickup;
-        if (newDropoff is not null) DropoffAddress = newDropoff;
-        if (newPickupWindow is not null) PickupWindow = newPickupWindow;
-        if (newDropoffWindow is not null) DropoffWindow = newDropoffWindow;
-        if (newNotes is not null) Notes = newNotes;
-        if (newPriority.HasValue) Priority = newPriority.Value;
-
-        if (Status == OrderStatus.Confirmed)
-            Status = OrderStatus.Draft;
-
-        UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new OrderAmendedEvent(Id, OrderNumber));
     }
 }

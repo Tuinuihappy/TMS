@@ -115,13 +115,14 @@ public sealed class ImportOrderHandler(IOrderRepository orderRepository)
         var priority = Enum.TryParse<OrderPriority>(row.Priority, true, out var p)
             ? p : OrderPriority.Normal;
 
-        var order = TransportOrder.Create(
-            orderNumber, customerId, pickup, dropoff, priority, tenantId: tenantId);
+        var order = TransportOrder.Create(orderNumber, customerId, priority, tenantId: tenantId);
 
+        var stop = OrderStop.Create(order.Id, 1, pickup, dropoff);
         var item = OrderItem.Create(
-            order.Id, row.ItemDescription!,
+            stop.Id, row.ItemDescription!,
             weightKg: row.WeightKg, volumeCbm: row.VolumeCBM, quantity: row.Quantity);
-        order.AddItem(item);
+        stop.AddItem(item);
+        order.AddStop(stop);
 
         await orderRepository.AddAsync(order, ct);
     }

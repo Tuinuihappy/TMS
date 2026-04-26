@@ -12,19 +12,32 @@ public interface IOrderQueryService
 }
 
 /// <summary>
+/// Per-stop routing constraints — mirrors OrderStopSnapshot แต่ใช้ภายใน Planning module
+/// </summary>
+public sealed record OrderStopConstraint(
+    Guid StopId,
+    int Sequence,
+    double PickupLat,
+    double PickupLng,
+    double DropoffLat,
+    double DropoffLng,
+    decimal WeightKg,
+    decimal VolumeCBM,
+    DateTime? ReadyTime,
+    DateTime? DueTime,
+    DateTime? PickupWindowFrom,
+    DateTime? PickupWindowTo,
+    DateTime? DropoffWindowFrom,
+    DateTime? DropoffWindowTo);
+
+/// <summary>
 /// Read-only snapshot ของ Order สำหรับใช้ใน Planning module
+/// Stops แต่ละตัวมี routing constraints ของตัวเอง
 /// </summary>
 public sealed record OrderSnapshot(
     Guid Id,
     string OrderNumber,
     string Status,
-    double? PickupLat,
-    double? PickupLng,
-    double? DropoffLat,
-    double? DropoffLng,
     decimal TotalWeightKg,
     decimal TotalVolumeCBM,
-    DateTime? PickupWindowFrom,
-    DateTime? PickupWindowTo,
-    DateTime? DropoffWindowFrom,
-    DateTime? DropoffWindowTo);
+    IReadOnlyList<OrderStopConstraint> Stops);

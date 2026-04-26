@@ -13,7 +13,7 @@ namespace Tms.Planning.Application.Features;
 // ── Shared DTOs ──────────────────────────────────────────────────────────────
 
 public sealed record RouteStopDto(
-    Guid Id, int Sequence, Guid OrderId,
+    Guid Id, int Sequence, Guid OrderId, Guid OrderStopId,
     string StopType,
     double Lat, double Lng,
     DateTime? EstimatedArrivalTime, DateTime? EstimatedDepartureTime);
@@ -32,11 +32,12 @@ public sealed record OptimizationRequestDto(
 public sealed record OrderLocationInput(Guid OrderId, double Lat, double Lng, decimal WeightKg = 0);
 
 /// <summary>
-/// PDP input — 1 Order มีทั้ง Pickup location + Dropoff location
+/// PDP input — 1 OrderStop มีทั้ง Pickup location + Dropoff location
 /// รวม volume constraint + time window
 /// </summary>
 public sealed record PdpOrderInput(
     Guid OrderId,
+    Guid OrderStopId,
     double PickupLat,
     double PickupLng,
     double DropoffLat,
@@ -89,6 +90,7 @@ public sealed class RequestOptimizationHandler(
             // Convert PdpOrderInput → VrpOrderInput for OR-Tools solver
             var vrpInputs = req.Orders.Select(o => new VrpOrderInput(
                 OrderId: o.OrderId,
+                OrderStopId: o.OrderStopId,
                 PickupLat: o.PickupLat,
                 PickupLng: o.PickupLng,
                 DropoffLat: o.DropoffLat,
@@ -142,7 +144,7 @@ public sealed class RequestOptimizationHandler(
                 foreach (var vrpStop in vrpRoute.Stops)
                 {
                     var stop = RouteStop.Create(
-                        plan.Id, seq++, vrpStop.OrderId,
+                        plan.Id, seq++, vrpStop.OrderId, vrpStop.OrderStopId,
                         vrpStop.StopType,
                         vrpStop.Latitude, vrpStop.Longitude,
                         vrpStop.EstimatedArrival);
@@ -214,7 +216,7 @@ public sealed class GetRoutePlansHandler(IRoutePlanRepository repo)
         p.TotalDistanceKm, p.EstimatedTotalDurationMin, p.CapacityUtilizationPercent, p.CreatedAt,
         p.Stops.OrderBy(s => s.Sequence)
             .Select(s => new RouteStopDto(
-                s.Id, s.Sequence, s.OrderId, s.StopType,
+                s.Id, s.Sequence, s.OrderId, s.OrderStopId, s.StopType,
                 s.Latitude, s.Longitude,
                 s.EstimatedArrivalTime, s.EstimatedDepartureTime)).ToList());
 }
@@ -278,7 +280,7 @@ public sealed class LockRoutePlanHandler(
         var stops = plan.Stops
             .OrderBy(s => s.Sequence)
             .Select(s => new RoutePlanStopSnapshot(
-                s.Sequence, s.OrderId,
+                s.Sequence, s.OrderId, s.OrderStopId,
                 s.StopType,
                 s.Latitude, s.Longitude,
                 s.EstimatedArrivalTime))

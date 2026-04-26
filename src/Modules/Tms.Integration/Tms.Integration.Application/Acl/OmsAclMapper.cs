@@ -90,9 +90,7 @@ public sealed class OmsAclMapper
             CustomerId: customerId,
             TenantId: tenantId,
             OrderNumber: null,       // TMS generate เอง
-            PickupAddress: pickupAddress,
-            DropoffAddress: dropoffAddress,
-            Items: items,
+            Stops: [new OrderStopDto(pickupAddress, dropoffAddress, items)],
             Notes: $"OMS Import | ExternalRef: {externalRef}");
     }
 }

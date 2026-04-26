@@ -6,7 +6,7 @@ namespace Tms.Orders.Domain.Entities;
 
 public sealed class OrderItem : BaseEntity
 {
-    public Guid OrderId { get; private set; }
+    public Guid StopId { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public string? SKU { get; private set; }
     public Weight Weight { get; private set; } = null!;
@@ -19,7 +19,7 @@ public sealed class OrderItem : BaseEntity
     private OrderItem() { }  // EF Core
 
     public static OrderItem Create(
-        Guid orderId,
+        Guid stopId,
         string description,
         decimal weightKg,
         decimal volumeCbm,
@@ -39,7 +39,7 @@ public sealed class OrderItem : BaseEntity
 
         return new OrderItem
         {
-            OrderId = orderId,
+            StopId = stopId,
             Description = description,
             SKU = sku,
             Weight = Weight.Create(weightKg, weightUnit),

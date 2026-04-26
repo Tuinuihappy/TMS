@@ -58,9 +58,12 @@ public sealed class ReOptimizeTripHandler(
             if (pickup is null || dropoff is null) continue; // Partial — skip unpaired
 
             orderInputs.Add(new PdpOrderInput(
-                orderId,
-                pickup.AddressLatitude  ?? 0, pickup.AddressLongitude  ?? 0,
-                dropoff.AddressLatitude ?? 0, dropoff.AddressLongitude ?? 0,
+                OrderId: orderId,
+                OrderStopId: pickup.Id,  // Trip.Stop.Id used as proxy — stop-level planning unit
+                PickupLat: pickup.AddressLatitude   ?? 0,
+                PickupLng: pickup.AddressLongitude  ?? 0,
+                DropoffLat: dropoff.AddressLatitude ?? 0,
+                DropoffLng: dropoff.AddressLongitude ?? 0,
                 DropoffWindowFrom: dropoff.WindowFrom,
                 DropoffWindowTo:   dropoff.WindowTo,
                 PickupWindowFrom:  pickup.WindowFrom,

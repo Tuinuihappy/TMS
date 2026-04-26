@@ -12,7 +12,9 @@ public sealed class PlanningOrderConfiguration : IEntityTypeConfiguration<Planni
         builder.HasKey(o => o.Id);
         
         builder.Property(o => o.OrderNumber).HasMaxLength(50).IsRequired();
-        builder.HasIndex(o => o.OrderId).IsUnique();
+        builder.Property(o => o.OrderStopId).IsRequired();
+        // Uniqueness is per (OrderId, OrderStopId) — one PlanningOrder per OrderStop
+        builder.HasIndex(o => new { o.OrderId, o.OrderStopId }).IsUnique();
         
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(30);
         

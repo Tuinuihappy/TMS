@@ -29,6 +29,28 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
         builder.Property(x => x.TotalWeight).HasPrecision(12, 3);
         builder.Property(x => x.TotalVolumeCBM).HasPrecision(12, 4);
 
+        builder.HasMany<OrderStop>(o => o.Stops)
+            .WithOne()
+            .HasForeignKey(s => s.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(o => o.Stops)
+            .HasField("_stops")
+            .UsePropertyAccessMode(PropertyAccessMode.PreferField)
+            .AutoInclude(); // required: Confirm() reads _stops, AddStop() updates totals
+    }
+}
+
+public sealed class OrderStopConfiguration : IEntityTypeConfiguration<OrderStop>
+{
+    public void Configure(EntityTypeBuilder<OrderStop> builder)
+    {
+        builder.ToTable("OrderStops");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Sequence).IsRequired();
+
+        builder.HasIndex(x => x.OrderId);
+
         builder.OwnsOne(x => x.PickupAddress, a =>
         {
             a.Property(p => p.Name).HasColumnName("PickupAddress_Name").HasMaxLength(200);
@@ -65,15 +87,15 @@ public sealed class TransportOrderConfiguration : IEntityTypeConfiguration<Trans
             w.Property(p => p.To).HasColumnName("DropoffWindowTo");
         });
 
-        builder.HasMany<OrderItem>(o => o.Items)
+        builder.HasMany<OrderItem>(s => s.Items)
             .WithOne()
-            .HasForeignKey(x => x.OrderId)
+            .HasForeignKey(i => i.StopId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.Navigation(o => o.Items)
+        builder.Navigation(s => s.Items)
             .HasField("_items")
             .UsePropertyAccessMode(PropertyAccessMode.PreferField)
-            .AutoInclude(); // still needed for Confirm() (_items.Count check) and event handlers
+            .AutoInclude();
     }
 }
 
@@ -84,6 +106,7 @@ public sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.ToTable("OrderItems");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.StopId).IsRequired();
 
         builder.OwnsOne(x => x.Weight, w =>
         {

@@ -8,30 +8,36 @@ public sealed class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
     {
         RuleFor(x => x.CustomerId).NotEmpty().WithMessage("Customer ID is required.");
 
-        RuleFor(x => x.PickupAddress).NotNull();
-        RuleFor(x => x.PickupAddress.Street).NotEmpty().WithMessage("Pickup street is required.");
-        RuleFor(x => x.PickupAddress.Province).NotEmpty().WithMessage("Pickup province is required.");
+        RuleFor(x => x.Stops)
+            .NotEmpty().WithMessage("Order must have at least one stop.");
 
-        RuleFor(x => x.DropoffAddress).NotNull();
-        RuleFor(x => x.DropoffAddress.Street).NotEmpty().WithMessage("Dropoff street is required.");
-        RuleFor(x => x.DropoffAddress.Province).NotEmpty().WithMessage("Dropoff province is required.");
-
-        RuleFor(x => x.Items).NotEmpty().WithMessage("Order must have at least one item.");
-        RuleForEach(x => x.Items).ChildRules(item =>
+        RuleForEach(x => x.Stops).ChildRules(stop =>
         {
-            item.RuleFor(i => i.Description).NotEmpty();
-            item.RuleFor(i => i.WeightKg).GreaterThan(0).WithMessage("Weight must be greater than 0.");
-            item.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("Quantity must be greater than 0.");
+            stop.RuleFor(s => s.PickupAddress).NotNull();
+            stop.RuleFor(s => s.PickupAddress.Street).NotEmpty().WithMessage("Pickup street is required.");
+            stop.RuleFor(s => s.PickupAddress.Province).NotEmpty().WithMessage("Pickup province is required.");
+
+            stop.RuleFor(s => s.DropoffAddress).NotNull();
+            stop.RuleFor(s => s.DropoffAddress.Street).NotEmpty().WithMessage("Dropoff street is required.");
+            stop.RuleFor(s => s.DropoffAddress.Province).NotEmpty().WithMessage("Dropoff province is required.");
+
+            stop.RuleFor(s => s.Items).NotEmpty().WithMessage("Each stop must have at least one item.");
+            stop.RuleForEach(s => s.Items).ChildRules(item =>
+            {
+                item.RuleFor(i => i.Description).NotEmpty();
+                item.RuleFor(i => i.WeightKg).GreaterThan(0).WithMessage("Weight must be greater than 0.");
+                item.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("Quantity must be greater than 0.");
+            });
+
+            stop.When(s => s.PickupWindow is not null, () =>
+                stop.RuleFor(s => s.PickupWindow!.To)
+                    .GreaterThan(s => s.PickupWindow!.From)
+                    .WithMessage("Pickup window 'To' must be after 'From'."));
+
+            stop.When(s => s.DropoffWindow is not null, () =>
+                stop.RuleFor(s => s.DropoffWindow!.To)
+                    .GreaterThan(s => s.DropoffWindow!.From)
+                    .WithMessage("Dropoff window 'To' must be after 'From'."));
         });
-
-        When(x => x.PickupWindow is not null, () =>
-            RuleFor(x => x.PickupWindow!.To)
-                .GreaterThan(x => x.PickupWindow!.From)
-                .WithMessage("Pickup window 'To' must be after 'From'."));
-
-        When(x => x.DropoffWindow is not null, () =>
-            RuleFor(x => x.DropoffWindow!.To)
-                .GreaterThan(x => x.DropoffWindow!.From)
-                .WithMessage("Dropoff window 'To' must be after 'From'."));
     }
 }

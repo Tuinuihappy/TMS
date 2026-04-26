@@ -23,31 +23,43 @@ public sealed class OrderConfirmedDomainEventHandler(
             return;
         }
 
+        var stopSnapshots = order.Stops
+            .OrderBy(s => s.Sequence)
+            .Select(s => new OrderStopSnapshot(
+                StopId: s.Id,
+                Sequence: s.Sequence,
+                PickupLatitude: s.PickupAddress?.Latitude ?? 0,
+                PickupLongitude: s.PickupAddress?.Longitude ?? 0,
+                PickupProvince: s.PickupAddress?.Province ?? string.Empty,
+                DropoffLatitude: s.DropoffAddress?.Latitude ?? 0,
+                DropoffLongitude: s.DropoffAddress?.Longitude ?? 0,
+                DropoffProvince: s.DropoffAddress?.Province ?? string.Empty,
+                WeightKg: s.StopTotalWeight,
+                VolumeCBM: s.StopTotalVolumeCBM,
+                ReadyTime: s.PickupWindow?.From,
+                DueTime: s.DropoffWindow?.To,
+                PickupWindowFrom: s.PickupWindow?.From,
+                PickupWindowTo: s.PickupWindow?.To,
+                DropoffWindowFrom: s.DropoffWindow?.From,
+                DropoffWindowTo: s.DropoffWindow?.To))
+            .ToList();
+
+        var allItems = order.Stops.SelectMany(s => s.Items).ToList();
+
         outbox.Stage(new OrderConfirmedIntegrationEvent(
             OrderId: order.Id,
             OrderNumber: order.OrderNumber,
             CustomerId: order.CustomerId,
             TenantId: order.TenantId,
             Priority: order.Priority.ToString(),
-            PickupLatitude: order.PickupAddress?.Latitude ?? 0,
-            PickupLongitude: order.PickupAddress?.Longitude ?? 0,
-            PickupProvince: order.PickupAddress?.Province ?? string.Empty,
-            DropoffLatitude: order.DropoffAddress?.Latitude ?? 0,
-            DropoffLongitude: order.DropoffAddress?.Longitude ?? 0,
-            DropoffProvince: order.DropoffAddress?.Province ?? string.Empty,
             TotalWeight: order.TotalWeight,
             TotalVolumeCBM: order.TotalVolumeCBM,
-            ItemCount: order.Items.Count,
-            HasDangerousGoods: order.Items.Any(i => i.IsDangerousGoods),
-            ReadyTime: order.PickupWindow?.From,
-            DueTime: order.DropoffWindow?.To,
-            PickupWindowFrom: order.PickupWindow?.From,
-            PickupWindowTo: order.PickupWindow?.To,
-            DropoffWindowFrom: order.DropoffWindow?.From,
-            DropoffWindowTo: order.DropoffWindow?.To));
+            ItemCount: allItems.Count,
+            HasDangerousGoods: allItems.Any(i => i.IsDangerousGoods),
+            Stops: stopSnapshots));
 
         logger.LogInformation(
-            "Staged OrderConfirmedIntegrationEvent for Order {OrderNumber}: W={Weight}, V={Volume}, Items={Count}",
-            order.OrderNumber, order.TotalWeight, order.TotalVolumeCBM, order.Items.Count);
+            "Staged OrderConfirmedIntegrationEvent for Order {OrderNumber}: W={Weight}, V={Volume}, Stops={StopCount}, Items={ItemCount}",
+            order.OrderNumber, order.TotalWeight, order.TotalVolumeCBM, stopSnapshots.Count, allItems.Count);
     }
 }

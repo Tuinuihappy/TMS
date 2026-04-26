@@ -53,6 +53,7 @@ public sealed record RoutePlanLockedIntegrationEvent(
 public sealed record RoutePlanStopSnapshot(
     int Sequence,
     Guid OrderId,
+    Guid OrderStopId,
     string StopType,
     double Latitude,
     double Longitude,

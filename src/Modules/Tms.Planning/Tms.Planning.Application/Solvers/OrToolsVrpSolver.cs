@@ -14,16 +14,18 @@ public sealed record VrpRouteResult(
 public sealed record VrpStopResult(
     int OriginalNodeIndex,
     Guid OrderId,
+    Guid OrderStopId,
     string StopType,   // "Pickup" | "Dropoff"
     double Latitude,
     double Longitude,
     DateTime? EstimatedArrival);
 
 /// <summary>
-/// ข้อมูล Order ที่ส่งเข้า VRP Solver — แต่ละ Order มี Pickup + Dropoff
+/// ข้อมูล OrderStop ที่ส่งเข้า VRP Solver — แต่ละ input คือ 1 Physical Movement Unit
 /// </summary>
 public sealed record VrpOrderInput(
     Guid OrderId,
+    Guid OrderStopId,
     double PickupLat, double PickupLng,
     double DropoffLat, double DropoffLng,
     decimal WeightKg,
@@ -228,6 +230,7 @@ public sealed class OrToolsVrpSolver
                 stops.Add(new VrpStopResult(
                     OriginalNodeIndex: nodeIdx,
                     OrderId: order.OrderId,
+                    OrderStopId: order.OrderStopId,
                     StopType: isPickup ? "Pickup" : "Dropoff",
                     Latitude: nodes[nodeIdx].Lat,
                     Longitude: nodes[nodeIdx].Lng,
@@ -265,11 +268,11 @@ public sealed class OrToolsVrpSolver
         {
             var d1 = HaversineKm(lastLat, lastLng, o.PickupLat, o.PickupLng);
             currentTime = currentTime.AddMinutes(d1 / AvgSpeedKmh * 60 + ServiceTimeMin);
-            stops.Add(new VrpStopResult(seq++, o.OrderId, "Pickup", o.PickupLat, o.PickupLng, currentTime));
+            stops.Add(new VrpStopResult(seq++, o.OrderId, o.OrderStopId, "Pickup", o.PickupLat, o.PickupLng, currentTime));
 
             var d2 = HaversineKm(o.PickupLat, o.PickupLng, o.DropoffLat, o.DropoffLng);
             currentTime = currentTime.AddMinutes(d2 / AvgSpeedKmh * 60 + ServiceTimeMin);
-            stops.Add(new VrpStopResult(seq++, o.OrderId, "Dropoff", o.DropoffLat, o.DropoffLng, currentTime));
+            stops.Add(new VrpStopResult(seq++, o.OrderId, o.OrderStopId, "Dropoff", o.DropoffLat, o.DropoffLng, currentTime));
 
             totalDist += (decimal)(d1 + d2);
             lastLat = o.DropoffLat;

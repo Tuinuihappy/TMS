@@ -50,6 +50,7 @@ public sealed class ProcessOptimizationRequestCommandHandler(
             // 4. แปลงเป็น VRP Input
             var vrpInputs = planningOrders.Select(po => new VrpOrderInput(
                 OrderId: po.OrderId,
+                OrderStopId: po.OrderStopId,
                 PickupLat: po.PickupLatitude,
                 PickupLng: po.PickupLongitude,
                 DropoffLat: po.DropoffLatitude,
@@ -96,6 +97,7 @@ public sealed class ProcessOptimizationRequestCommandHandler(
                         routePlanId: routePlan.Id,
                         sequence: seq++,
                         orderId: stop.OrderId,
+                        orderStopId: stop.OrderStopId,
                         stopType: stop.StopType,
                         lat: stop.Latitude,
                         lng: stop.Longitude,

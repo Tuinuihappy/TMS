@@ -12,6 +12,7 @@ public class PlanningOrderTests
     {
         return PlanningOrder.Create(
             orderId: Guid.NewGuid(),
+            orderStopId: Guid.NewGuid(),
             orderNumber: "ORD-12345",
             tenantId: Guid.NewGuid(),
             pickupLat: 13.7, pickupLng: 100.5,

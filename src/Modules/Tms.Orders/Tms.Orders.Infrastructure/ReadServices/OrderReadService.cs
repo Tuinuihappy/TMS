@@ -5,11 +5,6 @@ using Tms.Orders.Infrastructure.Persistence;
 
 namespace Tms.Orders.Infrastructure.ReadServices;
 
-/// <summary>
-/// Thin read service — projects OrderDto directly in SQL.
-/// ไม่ load full entity graph: select เฉพาะ columns ที่ OrderDto ต้องการ
-/// ลด data transfer และ EF change tracking overhead
-/// </summary>
 public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
 {
     public async Task<(IReadOnlyList<OrderDto> Items, int TotalCount)> GetPagedAsync(
@@ -45,15 +40,20 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
                 o.Priority.ToString(),
                 o.TotalWeight,
                 o.TotalVolumeCBM,
-                o.Items.Count,
-                o.PickupAddress.Street + ", " + o.PickupAddress.Province,
-                o.PickupAddress.Province,
-                o.DropoffAddress.Street + ", " + o.DropoffAddress.Province,
-                o.DropoffAddress.Province,
-                o.PickupWindow != null ? o.PickupWindow.From : (DateTime?)null,
-                o.PickupWindow != null ? o.PickupWindow.To : (DateTime?)null,
-                o.DropoffWindow != null ? o.DropoffWindow.From : (DateTime?)null,
-                o.DropoffWindow != null ? o.DropoffWindow.To : (DateTime?)null,
+                o.Stops.Count,
+                o.Stops.Sum(s => s.Items.Count),
+                o.Stops.OrderBy(s => s.Sequence).Select(s => new OrderStopSummaryDto(
+                    s.Id,
+                    s.Sequence,
+                    s.PickupAddress.Street + ", " + s.PickupAddress.Province,
+                    s.PickupAddress.Province,
+                    s.DropoffAddress.Street + ", " + s.DropoffAddress.Province,
+                    s.DropoffAddress.Province,
+                    s.PickupWindow != null ? s.PickupWindow.From : (DateTime?)null,
+                    s.PickupWindow != null ? s.PickupWindow.To : (DateTime?)null,
+                    s.DropoffWindow != null ? s.DropoffWindow.From : (DateTime?)null,
+                    s.DropoffWindow != null ? s.DropoffWindow.To : (DateTime?)null
+                )).ToList(),
                 o.CreatedAt,
                 o.UpdatedAt))
             .ToListAsync(ct);
@@ -73,15 +73,20 @@ public sealed class OrderReadService(OrdersDbContext ctx) : IOrderReadService
                 o.Priority.ToString(),
                 o.TotalWeight,
                 o.TotalVolumeCBM,
-                o.Items.Count,
-                o.PickupAddress.Street + ", " + o.PickupAddress.Province,
-                o.PickupAddress.Province,
-                o.DropoffAddress.Street + ", " + o.DropoffAddress.Province,
-                o.DropoffAddress.Province,
-                o.PickupWindow != null ? o.PickupWindow.From : (DateTime?)null,
-                o.PickupWindow != null ? o.PickupWindow.To : (DateTime?)null,
-                o.DropoffWindow != null ? o.DropoffWindow.From : (DateTime?)null,
-                o.DropoffWindow != null ? o.DropoffWindow.To : (DateTime?)null,
+                o.Stops.Count,
+                o.Stops.Sum(s => s.Items.Count),
+                o.Stops.OrderBy(s => s.Sequence).Select(s => new OrderStopSummaryDto(
+                    s.Id,
+                    s.Sequence,
+                    s.PickupAddress.Street + ", " + s.PickupAddress.Province,
+                    s.PickupAddress.Province,
+                    s.DropoffAddress.Street + ", " + s.DropoffAddress.Province,
+                    s.DropoffAddress.Province,
+                    s.PickupWindow != null ? s.PickupWindow.From : (DateTime?)null,
+                    s.PickupWindow != null ? s.PickupWindow.To : (DateTime?)null,
+                    s.DropoffWindow != null ? s.DropoffWindow.From : (DateTime?)null,
+                    s.DropoffWindow != null ? s.DropoffWindow.To : (DateTime?)null
+                )).ToList(),
                 o.CreatedAt,
                 o.UpdatedAt))
             .FirstOrDefaultAsync(ct);

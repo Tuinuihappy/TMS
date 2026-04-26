@@ -14,16 +14,16 @@ public sealed class OrderAmendedIntegrationEventHandler(
 {
     public async Task Handle(OrderAmendedIntegrationEvent notification, CancellationToken cancellationToken)
     {
-        var planningOrder = await dbContext.PlanningOrders
-            .FirstOrDefaultAsync(o => o.OrderId == notification.OrderId, cancellationToken);
+        var planningOrders = await dbContext.PlanningOrders
+            .Where(o => o.OrderId == notification.OrderId)
+            .ToListAsync(cancellationToken);
 
-        if (planningOrder is null)
+        if (planningOrders.Count == 0)
         {
-            logger.LogDebug("PlanningOrder for amended Order {OrderId} not found. Skipping.", notification.OrderId);
+            logger.LogDebug("No PlanningOrders found for amended Order {OrderId}. Skipping.", notification.OrderId);
             return;
         }
 
-        // ดึงข้อมูล constraints ล่าสุดจาก Orders module
         var snapshot = await orderQueryService.GetOrderAsync(notification.OrderId, cancellationToken);
         if (snapshot is null)
         {
@@ -31,20 +31,27 @@ public sealed class OrderAmendedIntegrationEventHandler(
             return;
         }
 
-        planningOrder.UpdateConstraints(
-            pickupLat: snapshot.PickupLat ?? 0,
-            pickupLng: snapshot.PickupLng ?? 0,
-            dropoffLat: snapshot.DropoffLat ?? 0,
-            dropoffLng: snapshot.DropoffLng ?? 0,
-            weight: snapshot.TotalWeightKg,
-            volume: snapshot.TotalVolumeCBM,
-            readyTime: snapshot.PickupWindowFrom,
-            dueTime: snapshot.DropoffWindowTo);
+        var stopMap = snapshot.Stops.ToDictionary(s => s.StopId);
+
+        foreach (var po in planningOrders)
+        {
+            if (!stopMap.TryGetValue(po.OrderStopId, out var stop)) continue;
+
+            po.UpdateConstraints(
+                pickupLat: stop.PickupLat,
+                pickupLng: stop.PickupLng,
+                dropoffLat: stop.DropoffLat,
+                dropoffLng: stop.DropoffLng,
+                weight: stop.WeightKg,
+                volume: stop.VolumeCBM,
+                readyTime: stop.ReadyTime,
+                dueTime: stop.DueTime);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Updated PlanningOrder constraints for amended Order {OrderNumber}. Changes: {Changes}",
-            notification.OrderNumber, string.Join(", ", notification.Changes));
+            "Updated {Count} PlanningOrder constraint(s) for amended Order {OrderNumber}. Changes: {Changes}",
+            planningOrders.Count, notification.OrderNumber, string.Join(", ", notification.Changes));
     }
 }

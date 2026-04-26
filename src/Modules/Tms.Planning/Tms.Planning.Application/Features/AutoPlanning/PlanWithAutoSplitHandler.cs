@@ -58,21 +58,23 @@ public sealed class PlanWithAutoSplitHandler(
                 $"Orders [{string.Join(", ", invalid.Select(o => o.OrderNumber))}] cannot be planned.",
                 "INVALID_ORDER_STATUS_FOR_PLAN");
 
-        // 2. Build VrpOrderInput list for OR-Tools
+        // 2. Flatten stops → 1 VrpOrderInput per OrderStop (Physical Movement Unit)
         var vrpInputs = snapshots
-            .Where(s => s.PickupLat.HasValue && s.DropoffLat.HasValue)
-            .Select(s => new VrpOrderInput(
-                OrderId: s.Id,
-                PickupLat: s.PickupLat!.Value,
-                PickupLng: s.PickupLng!.Value,
-                DropoffLat: s.DropoffLat!.Value,
-                DropoffLng: s.DropoffLng!.Value,
-                WeightKg: s.TotalWeightKg,
-                VolumeCbm: s.TotalVolumeCBM,
-                PickupWindowFrom: s.PickupWindowFrom,
-                PickupWindowTo: s.PickupWindowTo,
-                DropoffWindowFrom: s.DropoffWindowFrom,
-                DropoffWindowTo: s.DropoffWindowTo))
+            .SelectMany(s => s.Stops
+                .Where(stop => stop.PickupLat != 0 && stop.DropoffLat != 0)
+                .Select(stop => new VrpOrderInput(
+                    OrderId: s.Id,
+                    OrderStopId: stop.StopId,
+                    PickupLat: stop.PickupLat,
+                    PickupLng: stop.PickupLng,
+                    DropoffLat: stop.DropoffLat,
+                    DropoffLng: stop.DropoffLng,
+                    WeightKg: stop.WeightKg,
+                    VolumeCbm: stop.VolumeCBM,
+                    PickupWindowFrom: stop.PickupWindowFrom,
+                    PickupWindowTo: stop.PickupWindowTo,
+                    DropoffWindowFrom: stop.DropoffWindowFrom,
+                    DropoffWindowTo: stop.DropoffWindowTo)))
             .ToList();
 
         if (vrpInputs.Count == 0)
@@ -127,7 +129,7 @@ public sealed class PlanWithAutoSplitHandler(
                 foreach (var vrpStop in vrpRoute.Stops)
                 {
                     var stop = RouteStop.Create(
-                        plan.Id, seq++, vrpStop.OrderId,
+                        plan.Id, seq++, vrpStop.OrderId, vrpStop.OrderStopId,
                         vrpStop.StopType,
                         vrpStop.Latitude, vrpStop.Longitude,
                         vrpStop.EstimatedArrival);

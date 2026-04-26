@@ -38,6 +38,11 @@ public class TmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 { "ConnectionStrings:TmsDb", _dbContainer.GetConnectionString() }
             });
         });
+        builder.ConfigureServices(services =>
+        {
+            // Use in-memory cache in tests (no Redis)
+            services.AddDistributedMemoryCache();
+        });
     }
 
     public async Task InitializeAsync()
@@ -55,9 +60,9 @@ public class TmsWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         var resourcesCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)resourcesDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
         try { await resourcesCreator.CreateTablesAsync(); } catch { } // Ignore if Outbox already exists
 
+        // MigrateAsync applies migrations in order (handles FK dependency and new tables like OrderStops)
         var ordersDb = scope.ServiceProvider.GetRequiredService<Tms.Orders.Infrastructure.Persistence.OrdersDbContext>();
-        var ordersCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)ordersDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
-        try { await ordersCreator.CreateTablesAsync(); } catch { }
+        await ordersDb.Database.MigrateAsync();
         
         var execDb = scope.ServiceProvider.GetRequiredService<Tms.Execution.Infrastructure.Persistence.ExecutionDbContext>();
         var execCreator = (Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator)execDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();

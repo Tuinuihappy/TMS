@@ -31,6 +31,7 @@ public sealed class LockRoutePlanCommandHandler(
         var stopSnapshots = plan.Stops.Select(s => new RoutePlanStopSnapshot(
             Sequence: s.Sequence,
             OrderId: s.OrderId,
+            OrderStopId: s.OrderStopId,
             StopType: s.StopType,
             Latitude: s.Latitude,
             Longitude: s.Longitude,

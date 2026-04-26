@@ -85,6 +85,7 @@ public sealed class RouteStop : BaseEntity
     public Guid RoutePlanId { get; private set; }
     public int Sequence { get; private set; }
     public Guid OrderId { get; private set; }
+    public Guid OrderStopId { get; private set; }
     /// <summary>"Pickup" | "Dropoff"</summary>
     public string StopType { get; private set; } = "Dropoff";
     public double Latitude { get; private set; }
@@ -95,7 +96,7 @@ public sealed class RouteStop : BaseEntity
     private RouteStop() { }
 
     public static RouteStop Create(
-        Guid routePlanId, int sequence, Guid orderId,
+        Guid routePlanId, int sequence, Guid orderId, Guid orderStopId,
         string stopType,
         double lat, double lng,
         DateTime? etaArrival = null, DateTime? etaDeparture = null)
@@ -105,6 +106,7 @@ public sealed class RouteStop : BaseEntity
             RoutePlanId = routePlanId,
             Sequence = sequence,
             OrderId = orderId,
+            OrderStopId = orderStopId,
             StopType = stopType,
             Latitude = lat,
             Longitude = lng,
